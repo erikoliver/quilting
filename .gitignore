@@ -1,0 +1,66 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+!.env.example
+
+# Python packaging and tooling
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode and Swift build artifacts
+DerivedData/
+*.xcworkspace/
+*.xcuserstate
+xcuserdata/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM/
+
+# General build artifacts
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
