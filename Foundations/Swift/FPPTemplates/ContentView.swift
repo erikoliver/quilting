@@ -92,17 +92,46 @@ struct ContentView: View {
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Finished Size")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(formatInches(clampedFinishedSize))\"")
-                        .font(.system(.body, design: .monospaced))
-                }
+                Text("Finished Size")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-                Stepper(value: finishedSizeSelection, in: 1.0...7.0, step: 0.25) {
+                HStack(spacing: 10) {
+                    VStack(spacing: 0) {
+                        Button {
+                            adjustFinishedSize(by: 0.25)
+                        } label: {
+                            Image(systemName: "chevron.up")
+                                .font(.system(size: 16, weight: .semibold))
+                                .frame(width: 36, height: 25)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(clampedFinishedSize >= 7.0)
+                        .accessibilityLabel("Increase finished size")
+
+                        Divider()
+                            .frame(width: 28)
+
+                        Button {
+                            adjustFinishedSize(by: -0.25)
+                        } label: {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 16, weight: .semibold))
+                                .frame(width: 36, height: 25)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(clampedFinishedSize <= 1.0)
+                        .accessibilityLabel("Decrease finished size")
+                    }
+                    .frame(width: 40, height: 56)
+                    .background(Color(nsColor: .controlColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
                     Text("\(formatInches(clampedFinishedSize)) inches")
+                        .font(.system(.title3, design: .monospaced))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
 
@@ -156,6 +185,10 @@ struct ContentView: View {
         } catch {
             exportMessage = "Export failed: \(error.localizedDescription)"
         }
+    }
+
+    private func adjustFinishedSize(by amount: Double) {
+        finishedSizeSelection.wrappedValue = clampedFinishedSize + amount
     }
 
     private func formatInches(_ value: Double) -> String {
