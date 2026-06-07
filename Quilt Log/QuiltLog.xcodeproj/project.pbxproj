@@ -466,6 +466,7 @@
 				"INFOPLIST_FILE[sdk=iphoneos*]" = "QuiltLog/QuiltLog-iOS-Info.plist";
 				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "QuiltLog/QuiltLog-iOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Quilt Log";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -508,6 +509,7 @@
 				"INFOPLIST_FILE[sdk=iphoneos*]" = "QuiltLog/QuiltLog-iOS-Info.plist";
 				"INFOPLIST_FILE[sdk=iphonesimulator*]" = "QuiltLog/QuiltLog-iOS-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Quilt Log";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
