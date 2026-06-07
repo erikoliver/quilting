@@ -1,7 +1,11 @@
 import AppKit
 import Foundation
+import ImageIO
 
 enum PDFExportService {
+    private static let pdfImagePixelsPerPoint: CGFloat = 1
+    private static let pdfImageJPEGCompression: CGFloat = 0.55
+
     static func export(
         preset: PDFExportPreset,
         quilts: [Quilt],
@@ -96,8 +100,8 @@ enum PDFExportService {
                     NSBezierPath(rect: NSRect(x: x, y: y, width: column.1, height: rowHeight)).stroke()
                     if columnIndex < values.count {
                         draw(values[columnIndex], in: CGRect(x: x + 3, y: y + rowHeight - 20, width: column.1 - 6, height: 14), font: columnIndex == 1 ? boldFont : bodyFont)
-                    } else if let image = coverImage(for: quilt, photosByQuiltID: photosByQuiltID) {
-                        drawImage(image, in: NSRect(x: x + 8, y: y + 4, width: column.1 - 16, height: rowHeight - 8))
+                    } else if let imageData = coverImageData(for: quilt, photosByQuiltID: photosByQuiltID) {
+                        drawImage(imageData, in: NSRect(x: x + 8, y: y + 4, width: column.1 - 16, height: rowHeight - 8))
                     }
                     x += column.1
                 }
@@ -152,8 +156,8 @@ enum PDFExportService {
                 }
                 cardPath.stroke()
 
-                if let image = coverImage(for: quilt, photosByQuiltID: photosByQuiltID) {
-                    drawImage(image, in: imageRect.insetBy(dx: 8, dy: 8))
+                if let imageData = coverImageData(for: quilt, photosByQuiltID: photosByQuiltID) {
+                    drawImage(imageData, in: imageRect.insetBy(dx: 8, dy: 8))
                 } else {
                     NSColor.quaternaryLabelColor.setFill()
                     NSBezierPath(roundedRect: imageRect.insetBy(dx: 8, dy: 8), xRadius: 4, yRadius: 4).fill()
@@ -197,11 +201,10 @@ enum PDFExportService {
         try pdf.data.write(to: url, options: .atomic)
     }
 
-    private static func coverImage(for quilt: Quilt, photosByQuiltID: [Int64: [QuiltPhoto]]) -> NSImage? {
+    private static func coverImageData(for quilt: Quilt, photosByQuiltID: [Int64: [QuiltPhoto]]) -> Data? {
         let photos = photosByQuiltID[quilt.id] ?? []
         let photo = photos.first(where: \.isCover) ?? photos.first
-        guard let data = photo?.thumbnailData else { return nil }
-        return NSImage(data: data)
+        return photo?.thumbnailData
     }
 
     private static func isAvailable(_ quilt: Quilt) -> Bool {
@@ -233,8 +236,9 @@ enum PDFExportService {
         draw(Date.now.formatted(date: .numeric, time: .omitted), in: CGRect(x: 36, y: 24, width: 120, height: 14), font: NSFont.systemFont(ofSize: 10))
     }
 
-    private static func drawImage(_ image: NSImage, in rect: NSRect) {
-        let imageSize = image.size
+    private static func drawImage(_ imageData: Data, in rect: NSRect) {
+        guard let image = pdfImage(from: imageData, fitting: rect) else { return }
+        let imageSize = NSSize(width: image.width, height: image.height)
         guard imageSize.width > 0, imageSize.height > 0 else { return }
         let scale = min(rect.width / imageSize.width, rect.height / imageSize.height)
         let drawSize = NSSize(width: imageSize.width * scale, height: imageSize.height * scale)
@@ -244,7 +248,33 @@ enum PDFExportService {
             width: drawSize.width,
             height: drawSize.height
         )
-        image.draw(in: drawRect, from: .zero, operation: .sourceOver, fraction: 1)
+        NSGraphicsContext.current?.cgContext.draw(image, in: drawRect)
+    }
+
+    private static func pdfImage(from data: Data, fitting rect: NSRect) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let maxPixelSize = max(1, Int(ceil(max(rect.width, rect.height) * pdfImagePixelsPerPoint)))
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+
+        let compressedData = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(compressedData, "public.jpeg" as CFString, 1, nil) else {
+            return thumbnail
+        }
+        let properties: [CFString: Any] = [
+            kCGImageDestinationLossyCompressionQuality: pdfImageJPEGCompression
+        ]
+        CGImageDestinationAddImage(destination, thumbnail, properties as CFDictionary)
+        guard CGImageDestinationFinalize(destination),
+              let compressedSource = CGImageSourceCreateWithData(compressedData as CFData, nil),
+              let compressedImage = CGImageSourceCreateImageAtIndex(compressedSource, 0, nil) else {
+            return thumbnail
+        }
+        return compressedImage
     }
 
     private static func draw(

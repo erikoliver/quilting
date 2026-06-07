@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ImageIO
 import SQLite3
 
 @MainActor
@@ -11,6 +12,8 @@ final class QuiltStore: ObservableObject {
     @Published private(set) var databaseURL: URL?
 
     private var database: SQLiteDatabase?
+    private static let thumbnailMaxSide: CGFloat = 240
+    private static let thumbnailJPEGCompression: CGFloat = 0.64
 
     var filteredQuilts: [Quilt] {
         let needle = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -614,17 +617,22 @@ final class QuiltStore: ObservableObject {
     }
 
     private static func thumbnailJPEGData(for data: Data) -> Data? {
-        guard let image = NSImage(data: data) else { return nil }
-        let maxSide: CGFloat = 360
-        let scale = min(maxSide / max(image.size.width, image.size.height), 1)
-        let size = NSSize(width: image.size.width * scale, height: image.size.height * scale)
-        let thumbnail = NSImage(size: size)
-        thumbnail.lockFocus()
-        image.draw(in: NSRect(origin: .zero, size: size))
-        thumbnail.unlockFocus()
-        guard let tiff = thumbnail.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
-        return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.82])
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(thumbnailMaxSide)
+        ]
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(output, "public.jpeg" as CFString, 1, nil) else { return nil }
+        let properties: [CFString: Any] = [
+            kCGImageDestinationLossyCompressionQuality: thumbnailJPEGCompression
+        ]
+        CGImageDestinationAddImage(destination, thumbnail, properties as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return output as Data
     }
 
     private static func mimeType(for url: URL) -> String {
