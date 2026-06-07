@@ -22,8 +22,12 @@
 		01000000000000000000000D /* PDFExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010D /* PDFExportSheet.swift */; };
 		01000000000000000000000E /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010F /* UserPreferences.swift */; };
 		01000000000000000000000F /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000110 /* PreferencesView.swift */; };
+		010000000000000000000010 /* QuiltRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000112 /* QuiltRecord.swift */; };
+		010000000000000000000011 /* BackupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000113 /* BackupModels.swift */; };
+		010000000000000000000012 /* MigrationProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000114 /* MigrationProgressView.swift */; };
 		010000000000000000000810 /* PDFExportPresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000811 /* PDFExportPresetTests.swift */; };
 		010000000000000000000822 /* UserPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000823 /* UserPreferencesTests.swift */; };
+		010000000000000000000824 /* QuiltStoreMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000825 /* QuiltStoreMigrationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,8 +59,12 @@
 		01000000000000000000010E /* QuiltLog.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuiltLog.entitlements; sourceTree = "<group>"; };
 		01000000000000000000010F /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
 		010000000000000000000110 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
+		010000000000000000000112 /* QuiltRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltRecord.swift; sourceTree = "<group>"; };
+		010000000000000000000113 /* BackupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupModels.swift; sourceTree = "<group>"; };
+		010000000000000000000114 /* MigrationProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationProgressView.swift; sourceTree = "<group>"; };
 		010000000000000000000811 /* PDFExportPresetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportPresetTests.swift; sourceTree = "<group>"; };
 		010000000000000000000823 /* UserPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferencesTests.swift; sourceTree = "<group>"; };
+		010000000000000000000825 /* QuiltStoreMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltStoreMigrationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -123,8 +131,10 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000102 /* Quilt.swift */,
+				010000000000000000000112 /* QuiltRecord.swift */,
 				01000000000000000000010C /* PDFExportPreset.swift */,
 				01000000000000000000010F /* UserPreferences.swift */,
+				010000000000000000000113 /* BackupModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -155,6 +165,7 @@
 				010000000000000000000106 /* QuiltDetailView.swift */,
 				01000000000000000000010D /* PDFExportSheet.swift */,
 				010000000000000000000110 /* PreferencesView.swift */,
+				010000000000000000000114 /* MigrationProgressView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -164,6 +175,7 @@
 			children = (
 				010000000000000000000811 /* PDFExportPresetTests.swift */,
 				010000000000000000000823 /* UserPreferencesTests.swift */,
+				010000000000000000000825 /* QuiltStoreMigrationTests.swift */,
 			);
 			path = QuiltLogTests;
 			sourceTree = "<group>";
@@ -218,6 +230,17 @@
 				TargetAttributes = {
 					010000000000000000000400 = {
 						CreatedOnToolsVersion = 26.5;
+						SystemCapabilities = {
+							com.apple.BackgroundModes = {
+								enabled = 1;
+							};
+							com.apple.CloudKit = {
+								enabled = 1;
+							};
+							com.apple.iCloud = {
+								enabled = 1;
+							};
+						};
 					};
 					010000000000000000000815 = {
 						CreatedOnToolsVersion = 26.5;
@@ -280,6 +303,9 @@
 				01000000000000000000000D /* PDFExportSheet.swift in Sources */,
 				01000000000000000000000E /* UserPreferences.swift in Sources */,
 				01000000000000000000000F /* PreferencesView.swift in Sources */,
+				010000000000000000000010 /* QuiltRecord.swift in Sources */,
+				010000000000000000000011 /* BackupModels.swift in Sources */,
+				010000000000000000000012 /* MigrationProgressView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -289,6 +315,7 @@
 			files = (
 				010000000000000000000810 /* PDFExportPresetTests.swift in Sources */,
 				010000000000000000000822 /* UserPreferencesTests.swift in Sources */,
+				010000000000000000000824 /* QuiltStoreMigrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -417,7 +444,7 @@
 				CODE_SIGN_ENTITLEMENTS = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -425,11 +452,12 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Quilt Log";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -445,7 +473,7 @@
 				CODE_SIGN_ENTITLEMENTS = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -453,11 +481,12 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Quilt Log";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.4.1;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
