@@ -35,6 +35,8 @@ struct ContentView: View {
                 return !quilt.giftedAlready
             case .gifted:
                 return quilt.giftedAlready
+            case .status(let status):
+                return quilt.status == status.rawValue
             }
         }
 
@@ -122,13 +124,13 @@ struct ContentView: View {
                 .help("Group quilts")
 
                 Picker("Show", selection: $availabilityFilter) {
-                    ForEach(QuiltAvailabilityFilter.allCases) { filter in
+                    ForEach(QuiltAvailabilityFilter.allOptions) { filter in
                         Text(filter.title).tag(filter)
                     }
                 }
                 .labelsHidden()
-                .frame(width: 105)
-                .help("Filter quilts by gifting status")
+                .frame(width: 155)
+                .help("Filter quilts")
             }
 
             ToolbarItemGroup {
@@ -325,12 +327,28 @@ private enum QuiltGroupingMode: String, CaseIterable, Identifiable {
     }
 }
 
-private enum QuiltAvailabilityFilter: String, CaseIterable, Identifiable {
+private enum QuiltAvailabilityFilter: Hashable, Identifiable {
     case all
     case available
     case gifted
+    case status(QuiltStatus)
 
-    var id: String { rawValue }
+    static var allOptions: [QuiltAvailabilityFilter] {
+        [.all, .available, .gifted] + QuiltStatus.allCases.map { .status($0) }
+    }
+
+    var id: String {
+        switch self {
+        case .all:
+            return "all"
+        case .available:
+            return "available"
+        case .gifted:
+            return "gifted"
+        case .status(let status):
+            return "status-\(status.rawValue)"
+        }
+    }
 
     var title: String {
         switch self {
@@ -340,6 +358,8 @@ private enum QuiltAvailabilityFilter: String, CaseIterable, Identifiable {
             return "Available"
         case .gifted:
             return "Gifted"
+        case .status(let status):
+            return status.rawValue
         }
     }
 }
