@@ -61,7 +61,7 @@ struct PDFExportSheet: View {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = selectedPreset.defaultFilename
+        panel.nameFieldStringValue = selectedPreset.datedDefaultFilename
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         store.exportPDF(selectedPreset, to: url, ownerName: preferences.exportOwnerName)

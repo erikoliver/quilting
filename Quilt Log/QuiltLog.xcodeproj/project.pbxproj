@@ -22,10 +22,23 @@
 		01000000000000000000000D /* PDFExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010D /* PDFExportSheet.swift */; };
 		01000000000000000000000E /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010F /* UserPreferences.swift */; };
 		01000000000000000000000F /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000110 /* PreferencesView.swift */; };
+		010000000000000000000810 /* PDFExportPresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000811 /* PDFExportPresetTests.swift */; };
+		010000000000000000000822 /* UserPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000823 /* UserPreferencesTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		010000000000000000000812 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 010000000000000000000500 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 010000000000000000000400;
+			remoteInfo = QuiltLog;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		010000000000000000000100 /* QuiltLog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuiltLog.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		010000000000000000000111 /* QuiltLogTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QuiltLogTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		010000000000000000000101 /* QuiltLogApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltLogApp.swift; sourceTree = "<group>"; };
 		010000000000000000000102 /* Quilt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Quilt.swift; sourceTree = "<group>"; };
 		010000000000000000000103 /* SQLiteDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDatabase.swift; sourceTree = "<group>"; };
@@ -42,6 +55,8 @@
 		01000000000000000000010E /* QuiltLog.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuiltLog.entitlements; sourceTree = "<group>"; };
 		01000000000000000000010F /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
 		010000000000000000000110 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
+		010000000000000000000811 /* PDFExportPresetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportPresetTests.swift; sourceTree = "<group>"; };
+		010000000000000000000823 /* UserPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferencesTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,6 +68,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		010000000000000000000813 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -60,6 +82,7 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000301 /* QuiltLog */,
+				010000000000000000000814 /* QuiltLogTests */,
 				010000000000000000000302 /* Frameworks */,
 				010000000000000000000303 /* Products */,
 			);
@@ -91,6 +114,7 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000100 /* QuiltLog.app */,
+				010000000000000000000111 /* QuiltLogTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -135,6 +159,15 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		010000000000000000000814 /* QuiltLogTests */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000811 /* PDFExportPresetTests.swift */,
+				010000000000000000000823 /* UserPreferencesTests.swift */,
+			);
+			path = QuiltLogTests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -155,6 +188,24 @@
 			productReference = 010000000000000000000100 /* QuiltLog.app */;
 			productType = "com.apple.product-type.application";
 		};
+		010000000000000000000815 /* QuiltLogTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 010000000000000000000816 /* Build configuration list for PBXNativeTarget "QuiltLogTests" */;
+			buildPhases = (
+				010000000000000000000817 /* Sources */,
+				010000000000000000000813 /* Frameworks */,
+				010000000000000000000818 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				010000000000000000000819 /* PBXTargetDependency */,
+			);
+			name = QuiltLogTests;
+			productName = QuiltLogTests;
+			productReference = 010000000000000000000111 /* QuiltLogTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -167,6 +218,10 @@
 				TargetAttributes = {
 					010000000000000000000400 = {
 						CreatedOnToolsVersion = 26.5;
+					};
+					010000000000000000000815 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 010000000000000000000400;
 					};
 				};
 			};
@@ -184,6 +239,7 @@
 			projectRoot = "";
 			targets = (
 				010000000000000000000400 /* QuiltLog */,
+				010000000000000000000815 /* QuiltLogTests */,
 			);
 		};
 /* End PBXProject section */
@@ -194,6 +250,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				010000000000000000000009 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		010000000000000000000818 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -220,7 +283,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		010000000000000000000817 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				010000000000000000000810 /* PDFExportPresetTests.swift in Sources */,
+				010000000000000000000822 /* UserPreferencesTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		010000000000000000000819 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 010000000000000000000400 /* QuiltLog */;
+			targetProxy = 010000000000000000000812 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		010000000000000000000700 /* Debug */ = {
@@ -337,7 +417,7 @@
 				CODE_SIGN_ENTITLEMENTS = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -349,7 +429,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -365,7 +445,7 @@
 				CODE_SIGN_ENTITLEMENTS = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -377,11 +457,53 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.4.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		010000000000000000000820 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = PM34H2JW88;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/Contents/MacOS/QuiltLog";
+			};
+			name = Debug;
+		};
+		010000000000000000000821 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = PM34H2JW88;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/Contents/MacOS/QuiltLog";
 			};
 			name = Release;
 		};
@@ -402,6 +524,15 @@
 			buildConfigurations = (
 				010000000000000000000702 /* Debug */,
 				010000000000000000000703 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		010000000000000000000816 /* Build configuration list for PBXNativeTarget "QuiltLogTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				010000000000000000000820 /* Debug */,
+				010000000000000000000821 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

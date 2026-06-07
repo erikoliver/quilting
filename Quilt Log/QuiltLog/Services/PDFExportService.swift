@@ -28,20 +28,19 @@ enum PDFExportService {
                 includesRecipient: true
             )
         case .availableToGift:
-            try exportTable(
-                title: logTitle(ownerName: ownerName),
-                subtitle: "Available to Gift",
+            try exportAvailableToGiftCatalog(
+                title: availableToGiftTitle(ownerName: ownerName),
                 quilts: quilts.filter { isAvailable($0) },
                 photosByQuiltID: photosByQuiltID,
-                to: url,
-                includesRecipient: false
+                to: url
             )
         case .visualCatalog:
             try exportVisualCatalog(
-                ownerName: ownerName,
-                quilts: quilts,
+                title: visualCatalogTitle(ownerName: ownerName),
+                sections: [(nil, quilts)],
                 photosByQuiltID: photosByQuiltID,
-                to: url
+                to: url,
+                emphasizesAvailability: true
             )
         }
     }
@@ -105,7 +104,11 @@ enum PDFExportService {
                     NSColor.separatorColor.setStroke()
                     NSBezierPath(rect: NSRect(x: x, y: y, width: column.1, height: rowHeight)).stroke()
                     if columnIndex < values.count {
-                        draw(values[columnIndex], in: CGRect(x: x + 3, y: y + rowHeight - 20, width: column.1 - 6, height: 14), font: columnIndex == 1 ? boldFont : bodyFont)
+                        drawWrapped(
+                            values[columnIndex],
+                            in: CGRect(x: x + 3, y: y + 4, width: column.1 - 6, height: rowHeight - 8),
+                            font: columnIndex == 1 ? boldFont : bodyFont
+                        )
                     } else if let imageData = coverImageData(for: quilt, photosByQuiltID: photosByQuiltID) {
                         drawImage(imageData, in: NSRect(x: x + 8, y: y + 4, width: column.1 - 16, height: rowHeight - 8))
                     }
@@ -121,14 +124,16 @@ enum PDFExportService {
     }
 
     private static func exportVisualCatalog(
-        ownerName: String,
-        quilts: [Quilt],
+        title: String,
+        sections: [(heading: String?, quilts: [Quilt])],
         photosByQuiltID: [Int64: [QuiltPhoto]],
-        to url: URL
+        to url: URL,
+        emphasizesAvailability: Bool
     ) throws {
         let page = CGRect(x: 0, y: 0, width: 792, height: 612)
         let context = try makeContext(page: page)
         let titleFont = NSFont.systemFont(ofSize: 16, weight: .semibold)
+        let sectionHeadingFont = NSFont.systemFont(ofSize: 15, weight: .bold)
         let nameFont = NSFont.systemFont(ofSize: 11, weight: .semibold)
         let metaFont = NSFont.systemFont(ofSize: 9)
         let left: CGFloat = 34
@@ -139,47 +144,84 @@ enum PDFExportService {
         let vGap: CGFloat = 12
         let perPage = 9
 
-        for chunkStart in stride(from: 0, to: quilts.count, by: perPage) {
-            beginPage(context, page: page)
-            draw("\(visualCatalogTitle(ownerName: ownerName)) as of \(asOfDateString())", in: CGRect(x: left, y: 570, width: 500, height: 18), font: titleFont)
-
-            for offset in 0..<perPage {
-                let index = chunkStart + offset
-                guard index < quilts.count else { break }
-                let quilt = quilts[index]
-                let column = offset % 3
-                let row = offset / 3
-                let x = left + CGFloat(column) * (cardWidth + hGap)
-                let y = top - CGFloat(row + 1) * cardHeight - CGFloat(row) * vGap
-                let imageRect = NSRect(x: x, y: y + 36, width: cardWidth, height: cardHeight - 36)
-
-                let cardPath = NSBezierPath(roundedRect: NSRect(x: x, y: y, width: cardWidth, height: cardHeight), xRadius: 6, yRadius: 6)
-                if isAvailable(quilt) {
-                    NSColor.systemGreen.setStroke()
-                    cardPath.lineWidth = 2.4
-                } else {
-                    NSColor.separatorColor.setStroke()
-                    cardPath.lineWidth = 1
-                }
-                cardPath.stroke()
-
-                if let imageData = coverImageData(for: quilt, photosByQuiltID: photosByQuiltID) {
-                    drawImage(imageData, in: imageRect.insetBy(dx: 8, dy: 8))
-                } else {
-                    NSColor.quaternaryLabelColor.setFill()
-                    NSBezierPath(roundedRect: imageRect.insetBy(dx: 8, dy: 8), xRadius: 4, yRadius: 4).fill()
-                    draw("No photo", in: CGRect(x: x + 76, y: y + 86, width: 90, height: 18), font: metaFont, color: .secondaryLabelColor)
+        var pageNumber = 1
+        for section in sections where !section.quilts.isEmpty {
+            for chunkStart in stride(from: 0, to: section.quilts.count, by: perPage) {
+                beginPage(context, page: page)
+                draw("\(title) as of \(asOfDateString())", in: CGRect(x: left, y: 570, width: 500, height: 18), font: titleFont)
+                if let heading = section.heading {
+                    draw(
+                        heading,
+                        in: CGRect(x: page.midX - 120, y: 546, width: 240, height: 22),
+                        font: sectionHeadingFont,
+                        color: .systemIndigo,
+                        alignment: .center
+                    )
                 }
 
-                draw("#\(quilt.sequenceNumber)  \(quilt.quiltName)", in: CGRect(x: x + 8, y: y + 19, width: cardWidth - 16, height: 16), font: nameFont)
-                draw(visualCatalogMetaLine(for: quilt), in: CGRect(x: x + 8, y: y + 6, width: cardWidth - 16, height: 12), font: metaFont, color: isAvailable(quilt) ? .systemGreen : .secondaryLabelColor)
+                for offset in 0..<perPage {
+                    let index = chunkStart + offset
+                    guard index < section.quilts.count else { break }
+                    let quilt = section.quilts[index]
+                    let column = offset % 3
+                    let row = offset / 3
+                    let x = left + CGFloat(column) * (cardWidth + hGap)
+                    let y = top - CGFloat(row + 1) * cardHeight - CGFloat(row) * vGap
+                    let imageRect = NSRect(x: x, y: y + 36, width: cardWidth, height: cardHeight - 36)
+
+                    let cardPath = NSBezierPath(roundedRect: NSRect(x: x, y: y, width: cardWidth, height: cardHeight), xRadius: 6, yRadius: 6)
+                    if emphasizesAvailability, isAvailable(quilt) {
+                        NSColor.systemGreen.setStroke()
+                        cardPath.lineWidth = 2.4
+                    } else {
+                        NSColor.separatorColor.setStroke()
+                        cardPath.lineWidth = 1
+                    }
+                    cardPath.stroke()
+
+                    if let imageData = coverImageData(for: quilt, photosByQuiltID: photosByQuiltID) {
+                        drawImage(imageData, in: imageRect.insetBy(dx: 8, dy: 8))
+                    } else {
+                        NSColor.quaternaryLabelColor.setFill()
+                        NSBezierPath(roundedRect: imageRect.insetBy(dx: 8, dy: 8), xRadius: 4, yRadius: 4).fill()
+                        draw("No photo", in: CGRect(x: x + 76, y: y + 86, width: 90, height: 18), font: metaFont, color: .secondaryLabelColor)
+                    }
+
+                    draw("#\(quilt.sequenceNumber)  \(quilt.quiltName)", in: CGRect(x: x + 8, y: y + 19, width: cardWidth - 16, height: 16), font: nameFont)
+                    draw(
+                        visualCatalogMetaLine(for: quilt),
+                        in: CGRect(x: x + 8, y: y + 6, width: cardWidth - 16, height: 12),
+                        font: metaFont
+                    )
+                }
+
+                drawFooter(context, page: page, pageNumber: pageNumber)
+                endPage(context)
+                pageNumber += 1
             }
-
-            drawFooter(context, page: page, pageNumber: chunkStart / perPage + 1)
-            endPage(context)
         }
 
         try finish(context, to: url)
+    }
+
+    private static func exportAvailableToGiftCatalog(
+        title: String,
+        quilts: [Quilt],
+        photosByQuiltID: [Int64: [QuiltPhoto]],
+        to url: URL
+    ) throws {
+        let readyNow = quilts.filter { isReadyNowStatus($0.status) }
+        let comingSoon = quilts.filter { !isReadyNowStatus($0.status) }
+        try exportVisualCatalog(
+            title: title,
+            sections: [
+                ("Ready Now", readyNow),
+                ("Coming Soon", comingSoon),
+            ],
+            photosByQuiltID: photosByQuiltID,
+            to: url,
+            emphasizesAvailability: false
+        )
     }
 
     private static func makeContext(page: CGRect) throws -> (context: CGContext, data: NSMutableData) {
@@ -218,6 +260,10 @@ enum PDFExportService {
         !quilt.giftedAlready
     }
 
+    private static func isReadyNowStatus(_ status: String) -> Bool {
+        status == QuiltStatus.done.rawValue || status == QuiltStatus.backFromLongarm.rawValue
+    }
+
     private static func logTitle(ownerName: String) -> String {
         ownerName.isEmpty ? "Quilt Log" : "\(ownerName) Quilt Log"
     }
@@ -226,16 +272,23 @@ enum PDFExportService {
         ownerName.isEmpty ? "Visual Catalog of Quilts" : "Visual Catalog of Quilts by \(ownerName)"
     }
 
-    private static func availabilityLabel(for quilt: Quilt) -> String {
-        isAvailable(quilt) ? "Available" : "Unavailable"
+    private static func availableToGiftTitle(ownerName: String) -> String {
+        ownerName.isEmpty ? "Available to Gift Quilts" : "Available to Gift Quilts by \(ownerName)"
     }
 
     private static func visualCatalogMetaLine(for quilt: Quilt) -> String {
+        let pattern = quilt.patternName.trimmingCharacters(in: .whitespacesAndNewlines)
         let size = quilt.approxSize.trimmingCharacters(in: .whitespacesAndNewlines)
-        if size.isEmpty {
-            return availabilityLabel(for: quilt)
+        if !pattern.isEmpty, !size.isEmpty {
+            return "\(pattern) - \(size)"
         }
-        return "\(size) - \(availabilityLabel(for: quilt))"
+        if !pattern.isEmpty {
+            return pattern
+        }
+        if !size.isEmpty {
+            return size
+        }
+        return quilt.status
     }
 
     private static func asOfDateString() -> String {
@@ -276,20 +329,40 @@ enum PDFExportService {
         ]
         guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
 
+        let imageForCompression = opaqueImage(from: thumbnail) ?? thumbnail
         let compressedData = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(compressedData, "public.jpeg" as CFString, 1, nil) else {
-            return thumbnail
+            return imageForCompression
         }
         let properties: [CFString: Any] = [
             kCGImageDestinationLossyCompressionQuality: pdfImageJPEGCompression
         ]
-        CGImageDestinationAddImage(destination, thumbnail, properties as CFDictionary)
+        CGImageDestinationAddImage(destination, imageForCompression, properties as CFDictionary)
         guard CGImageDestinationFinalize(destination),
               let compressedSource = CGImageSourceCreateWithData(compressedData as CFData, nil),
               let compressedImage = CGImageSourceCreateImageAtIndex(compressedSource, 0, nil) else {
-            return thumbnail
+            return imageForCompression
         }
         return compressedImage
+    }
+
+    private static func opaqueImage(from image: CGImage) -> CGImage? {
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                data: nil,
+                width: image.width,
+                height: image.height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+              ) else {
+            return nil
+        }
+        NSColor.white.setFill()
+        context.fill(CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        return context.makeImage()
     }
 
     private static func draw(
@@ -302,6 +375,23 @@ enum PDFExportService {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
         paragraph.alignment = alignment
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: color,
+            .paragraphStyle: paragraph,
+        ]
+        text.draw(in: rect, withAttributes: attributes)
+    }
+
+    private static func drawWrapped(
+        _ text: String,
+        in rect: CGRect,
+        font: NSFont,
+        color: NSColor = .labelColor
+    ) {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byWordWrapping
+        paragraph.alignment = .left
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: color,

@@ -7,6 +7,32 @@ struct PreferencesView: View {
     @EnvironmentObject private var preferences: UserPreferences
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            privacySection
+            exportsSection
+        }
+        .padding(20)
+        .frame(width: 460)
+    }
+
+    private var privacySection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Privacy")
+                .font(.headline)
+
+            VStack(spacing: 0) {
+                Toggle("Hide recipients on screen", isOn: $preferences.hideRecipientsOnScreen)
+                    .toggleStyle(.checkbox)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(Color(nsColor: .controlBackgroundColor).opacity(0.55))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private var exportsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Exports")
                 .font(.headline)
@@ -41,8 +67,6 @@ struct PreferencesView: View {
             .background(Color(nsColor: .controlBackgroundColor).opacity(0.55))
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .padding(20)
-        .frame(width: 460)
     }
 
     private func preferenceRow<Content: View>(

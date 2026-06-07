@@ -33,6 +33,12 @@ scripts/make_dmg.sh
 
 The script checks the app signature, creates `dist/QuiltLog-<version>.dmg`, verifies the DMG, and checks the packaged app signature.
 
+Run tests with:
+
+```zsh
+xcodebuild test -project QuiltLog.xcodeproj -scheme QuiltLog -destination 'platform=macOS' -derivedDataPath .DerivedData
+```
+
 ## License
 
 Apache-2.0

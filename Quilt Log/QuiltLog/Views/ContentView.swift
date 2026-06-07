@@ -10,6 +10,7 @@ extension Notification.Name {
 
 struct ContentView: View {
     @EnvironmentObject private var store: QuiltStore
+    @EnvironmentObject private var preferences: UserPreferences
     @State private var selectedQuiltID: Int64?
     @State private var showingDeleteConfirmation = false
     @State private var showingPDFExport = false
@@ -55,7 +56,7 @@ struct ContentView: View {
     }
 
     private var visibleQuiltGroups: [QuiltGroup] {
-        QuiltGroup.groups(for: visibleQuilts, groupingMode: groupingMode)
+        QuiltGroup.groups(for: visibleQuilts, groupingMode: groupingMode, sortOrder: sortOrder)
     }
 
     var body: some View {
@@ -66,7 +67,10 @@ struct ContentView: View {
                     ForEach(visibleQuiltGroups) { group in
                         Section(group.title) {
                             ForEach(group.quilts) { quilt in
-                                QuiltRow(quilt: quilt)
+                                QuiltRow(
+                                    quilt: quilt,
+                                    hideRecipient: preferences.hideRecipientsOnScreen
+                                )
                                     .tag(quilt.id)
                             }
                         }
@@ -81,7 +85,8 @@ struct ContentView: View {
                     visibleCount: visibleQuilts.count,
                     selectedQuiltID: $selectedQuiltID,
                     displayMode: $displayMode,
-                    selectedQuilt: selectedQuilt
+                    selectedQuilt: selectedQuilt,
+                    hideRecipients: preferences.hideRecipientsOnScreen
                 )
             } else if let quilt = selectedQuilt {
                 QuiltDetailView(quilt: quilt)
@@ -101,14 +106,13 @@ struct ContentView: View {
             }
 
             ToolbarItemGroup {
-                Picker("Sort", selection: $sortOrder) {
-                    ForEach(QuiltSortOrder.allCases) { order in
-                        Text(order.title).tag(order)
-                    }
+                Button {
+                    sortOrder.toggle()
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
                 }
-                .labelsHidden()
-                .frame(width: 125)
-                .help("Sort quilts")
+                .accessibilityLabel(sortOrder.title)
+                .help(sortOrder.helpText)
 
                 Picker("Group", selection: $groupingMode) {
                     ForEach(QuiltGroupingMode.allCases) { mode in
@@ -189,6 +193,24 @@ struct ContentView: View {
                 selectedQuiltID = quilts.first?.id
             }
         }
+        .onAppear {
+            displayMode = DisplayMode(rawValue: preferences.contentDisplayMode) ?? .list
+            sortOrder = QuiltSortOrder(rawValue: preferences.contentSortOrder) ?? .oldestFirst
+            groupingMode = QuiltGroupingMode(rawValue: preferences.contentGroupingMode) ?? .status
+            availabilityFilter = QuiltAvailabilityFilter(preferenceValue: preferences.contentAvailabilityFilter)
+        }
+        .onChange(of: displayMode) { _, mode in
+            preferences.contentDisplayMode = mode.rawValue
+        }
+        .onChange(of: sortOrder) { _, order in
+            preferences.contentSortOrder = order.rawValue
+        }
+        .onChange(of: groupingMode) { _, mode in
+            preferences.contentGroupingMode = mode.rawValue
+        }
+        .onChange(of: availabilityFilter) { _, filter in
+            preferences.contentAvailabilityFilter = filter.preferenceValue
+        }
         .onReceive(NotificationCenter.default.publisher(for: .focusQuiltSearch)) { _ in
             searchFocusRequest += 1
         }
@@ -262,6 +284,7 @@ private struct SearchTextField: NSViewRepresentable {
 
 private struct QuiltRow: View {
     let quilt: Quilt
+    let hideRecipient: Bool
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -273,7 +296,7 @@ private struct QuiltRow: View {
                 Text(quilt.quiltName)
                     .fontWeight(.medium)
                     .lineLimit(1)
-                Text(quilt.recipient.isEmpty ? quilt.approxSize : quilt.recipient)
+                Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -281,9 +304,16 @@ private struct QuiltRow: View {
         }
         .padding(.vertical, 2)
     }
+
+    private var subtitle: String {
+        if !hideRecipient, !quilt.recipient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return quilt.recipient
+        }
+        return quilt.approxSize
+    }
 }
 
-private enum DisplayMode {
+private enum DisplayMode: String {
     case list
     case gallery
 }
@@ -301,6 +331,19 @@ private enum QuiltSortOrder: String, CaseIterable, Identifiable {
         case .newestFirst:
             return "Newest First"
         }
+    }
+
+    var helpText: String {
+        switch self {
+        case .oldestFirst:
+            return "Sorted oldest first. Click to sort newest first."
+        case .newestFirst:
+            return "Sorted newest first. Click to sort oldest first."
+        }
+    }
+
+    mutating func toggle() {
+        self = self == .oldestFirst ? .newestFirst : .oldestFirst
     }
 }
 
@@ -358,6 +401,37 @@ private enum QuiltAvailabilityFilter: Hashable, Identifiable {
             return status.rawValue
         }
     }
+
+    var preferenceValue: String {
+        switch self {
+        case .all:
+            return "all"
+        case .available:
+            return "available"
+        case .gifted:
+            return "gifted"
+        case .status(let status):
+            return "status:\(status.rawValue)"
+        }
+    }
+
+    init(preferenceValue: String) {
+        switch preferenceValue {
+        case "available":
+            self = .available
+        case "gifted":
+            self = .gifted
+        default:
+            if preferenceValue.hasPrefix("status:") {
+                let rawStatus = String(preferenceValue.dropFirst("status:".count))
+                if let status = QuiltStatus(rawValue: rawStatus) {
+                    self = .status(status)
+                    return
+                }
+            }
+            self = .all
+        }
+    }
 }
 
 private struct QuiltGroup: Identifiable, Equatable {
@@ -365,7 +439,7 @@ private struct QuiltGroup: Identifiable, Equatable {
     let title: String
     let quilts: [Quilt]
 
-    static func groups(for quilts: [Quilt], groupingMode: QuiltGroupingMode) -> [QuiltGroup] {
+    static func groups(for quilts: [Quilt], groupingMode: QuiltGroupingMode, sortOrder: QuiltSortOrder) -> [QuiltGroup] {
         switch groupingMode {
         case .none:
             return [QuiltGroup(id: "all", title: "All Quilts", quilts: quilts)]
@@ -376,7 +450,10 @@ private struct QuiltGroup: Identifiable, Equatable {
             ].filter { !$0.quilts.isEmpty }
         case .status:
             let knownStatuses = Set(QuiltStatus.allCases.map(\.rawValue))
-            var groups = QuiltStatus.allCases.compactMap { status -> QuiltGroup? in
+            let statuses = sortOrder == .newestFirst
+                ? QuiltStatus.allCases.reversed()
+                : QuiltStatus.allCases
+            var groups = statuses.compactMap { status -> QuiltGroup? in
                 let matchingQuilts = quilts.filter { $0.status == status.rawValue }
                 guard !matchingQuilts.isEmpty else { return nil }
                 return QuiltGroup(id: status.rawValue, title: status.rawValue, quilts: matchingQuilts)
@@ -397,6 +474,7 @@ private struct QuiltGalleryView: View {
     @Binding var selectedQuiltID: Int64?
     @Binding var displayMode: DisplayMode
     let selectedQuilt: Quilt?
+    let hideRecipients: Bool
 
     private let columns = [
         GridItem(.adaptive(minimum: 170, maximum: 220), spacing: 14)
@@ -424,9 +502,13 @@ private struct QuiltGalleryView: View {
                                             QuiltCoverTile(
                                                 quilt: quilt,
                                                 coverPhoto: coverPhoto(for: quilt),
-                                                isSelected: selectedQuiltID == quilt.id
+                                                isSelected: selectedQuiltID == quilt.id,
+                                                hideRecipient: hideRecipients
                                             ) {
                                                 selectedQuiltID = quilt.id
+                                            } doubleClickAction: {
+                                                selectedQuiltID = quilt.id
+                                                displayMode = .list
                                             }
                                         }
                                     }
@@ -445,7 +527,8 @@ private struct QuiltGalleryView: View {
             GalleryInspector(
                 quilt: selectedQuilt,
                 coverPhoto: selectedQuilt.flatMap(coverPhoto(for:)),
-                displayMode: $displayMode
+                displayMode: $displayMode,
+                hideRecipient: hideRecipients
             )
             .frame(width: 320)
         }
@@ -476,7 +559,9 @@ private struct QuiltCoverTile: View {
     let quilt: Quilt
     let coverPhoto: QuiltPhoto?
     let isSelected: Bool
+    let hideRecipient: Bool
     let action: () -> Void
+    let doubleClickAction: () -> Void
 
     var body: some View {
         Button(action: action) {
@@ -513,6 +598,10 @@ private struct QuiltCoverTile: View {
             }
         }
         .buttonStyle(.plain)
+        .simultaneousGesture(
+            TapGesture(count: 2)
+                .onEnded { doubleClickAction() }
+        )
     }
 
     private var coverImage: some View {
@@ -546,7 +635,7 @@ private struct QuiltCoverTile: View {
     }
 
     private var tileSubtitle: String {
-        if !quilt.recipient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if !hideRecipient, !quilt.recipient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return quilt.recipient
         }
         if !quilt.approxSize.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -560,6 +649,7 @@ private struct GalleryInspector: View {
     let quilt: Quilt?
     let coverPhoto: QuiltPhoto?
     @Binding var displayMode: DisplayMode
+    let hideRecipient: Bool
 
     var body: some View {
         if let quilt {
@@ -582,7 +672,9 @@ private struct GalleryInspector: View {
                     metadata("Date", quilt.quiltDate)
                     metadata("Pattern", quilt.patternName)
                     metadata("Fabric", quilt.fabricReminder)
-                    metadata("Recipient", quilt.recipient)
+                    if !hideRecipient {
+                        metadata("Recipient", quilt.recipient)
+                    }
 
                     if !quilt.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Divider()

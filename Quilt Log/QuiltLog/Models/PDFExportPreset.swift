@@ -36,4 +36,19 @@ enum PDFExportPreset: String, CaseIterable, Identifiable {
         case .visualCatalog: "Quilt Log - Visual Catalog.pdf"
         }
     }
+
+    var datedDefaultFilename: String {
+        datedDefaultFilename(on: Date())
+    }
+
+    func datedDefaultFilename(on date: Date) -> String {
+        "\(Self.filenameDateFormatter.string(from: date)) \(defaultFilename)"
+    }
+
+    private static let filenameDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd"
+        return formatter
+    }()
 }
