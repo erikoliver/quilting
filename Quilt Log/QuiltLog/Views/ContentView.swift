@@ -4,6 +4,8 @@
 import SwiftUI
 #if os(macOS)
 import AppKit
+#else
+import UIKit
 #endif
 
 extension Notification.Name {
@@ -21,6 +23,10 @@ struct ContentView: View {
     @State private var sortOrder: QuiltSortOrder = .oldestFirst
     @State private var groupingMode: QuiltGroupingMode = .status
     @State private var availabilityFilter: QuiltAvailabilityFilter = .all
+#if os(iOS)
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var pdfShareItem: PDFShareItem?
+#endif
 
     private var selectedQuilt: Quilt? {
         if let selectedQuiltID, let quilt = visibleQuilts.first(where: { $0.id == selectedQuiltID }) {
@@ -62,176 +68,316 @@ struct ContentView: View {
     }
 
     var body: some View {
+        platformSplitView
+            .alert("Quilt Log", isPresented: Binding(
+                get: { store.errorMessage != nil },
+                set: { if !$0 { store.errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { store.errorMessage = nil }
+            } message: {
+                Text(store.errorMessage ?? "")
+            }
+            .confirmationDialog(
+                "Delete quilt?",
+                isPresented: $showingDeleteConfirmation,
+                presenting: selectedQuilt
+            ) { quilt in
+                Button("Delete Quilt", role: .destructive) {
+                    Task {
+                        await store.deleteQuilt(id: quilt.id)
+                        selectedQuiltID = store.quilts.first?.id
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { quilt in
+                Text("This will permanently delete “\(quilt.quiltName)” and its stored photos, then close the sequence-number gap.")
+            }
+            .onChange(of: visibleQuilts) { _, quilts in
+                if selectedQuiltID == nil || !quilts.contains(where: { $0.id == selectedQuiltID }) {
+                    selectedQuiltID = quilts.first?.id
+                }
+            }
+            .onAppear {
+                displayMode = DisplayMode(rawValue: preferences.contentDisplayMode) ?? .list
+                sortOrder = QuiltSortOrder(rawValue: preferences.contentSortOrder) ?? .oldestFirst
+                groupingMode = QuiltGroupingMode(rawValue: preferences.contentGroupingMode) ?? .status
+                availabilityFilter = QuiltAvailabilityFilter(preferenceValue: preferences.contentAvailabilityFilter)
+            }
+            .onChange(of: displayMode) { _, mode in
+                preferences.contentDisplayMode = mode.rawValue
+            }
+            .onChange(of: sortOrder) { _, order in
+                preferences.contentSortOrder = order.rawValue
+            }
+            .onChange(of: groupingMode) { _, mode in
+                preferences.contentGroupingMode = mode.rawValue
+            }
+            .onChange(of: availabilityFilter) { _, filter in
+                preferences.contentAvailabilityFilter = filter.preferenceValue
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .focusQuiltSearch)) { _ in
+                searchFocusRequest += 1
+            }
+    }
+
+    @ViewBuilder
+    private var platformSplitView: some View {
+#if os(iOS)
+        baseSplitView
+            .safeAreaInset(edge: .top, spacing: 0) {
+                iPadCommandBar
+            }
+            .sheet(item: $pdfShareItem) { item in
+                PDFActivityView(activityItems: [item.url])
+            }
+#else
+        baseSplitView
+            .toolbar {
+                macToolbar
+            }
+            .sheet(isPresented: $showingPDFExport) {
+                PDFExportSheet()
+                    .environmentObject(store)
+            }
+#endif
+    }
+
+    @ViewBuilder
+    private var baseSplitView: some View {
+#if os(iOS)
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            sidebarContent
+        } detail: {
+            detailContent
+        }
+#else
         NavigationSplitView {
-            VStack(spacing: 0) {
-                searchField
-                ZStack {
-                    List(selection: $selectedQuiltID) {
-                        ForEach(visibleQuiltGroups) { group in
-                            Section(group.title) {
-                                ForEach(group.quilts) { quilt in
-                                    QuiltRow(
-                                        quilt: quilt,
-                                        hideRecipient: preferences.hideRecipientsOnScreen
-                                    )
-                                        .tag(quilt.id)
-                                }
+            sidebarContent
+        } detail: {
+            detailContent
+        }
+#endif
+    }
+
+#if os(macOS)
+    @ToolbarContentBuilder
+    private var macToolbar: some ToolbarContent {
+        ToolbarItem {
+            Picker("View", selection: $displayMode) {
+                Label("List", systemImage: "list.bullet").tag(DisplayMode.list)
+                Label("Gallery", systemImage: "square.grid.3x3").tag(DisplayMode.gallery)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 150)
+            .help("Switch between list detail and visual gallery")
+        }
+
+        ToolbarItemGroup {
+            Button {
+                sortOrder.toggle()
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+            }
+            .accessibilityLabel(sortOrder.title)
+            .help(sortOrder.helpText)
+
+            Picker("Group", selection: $groupingMode) {
+                ForEach(QuiltGroupingMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 115)
+            .help("Group quilts")
+
+            Picker("Show", selection: $availabilityFilter) {
+                ForEach(QuiltAvailabilityFilter.allOptions) { filter in
+                    Text(filter.title).tag(filter)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 155)
+            .help("Filter quilts")
+        }
+
+        ToolbarItemGroup {
+            Button {
+                Task {
+                    if let newID = await store.createQuilt() {
+                        selectedQuiltID = newID
+                    }
+                }
+            } label: {
+                Label("New Quilt", systemImage: "plus")
+            }
+            .help("Create a new quilt record")
+
+            Button {
+                showingPDFExport = true
+            } label: {
+                Label("Export PDF", systemImage: "square.and.arrow.up")
+            }
+            .help("Choose a PDF export format")
+
+            Button {
+                showingDeleteConfirmation = true
+            } label: {
+                Label("Delete Quilt", systemImage: "trash")
+            }
+            .help("Delete the selected quilt record")
+            .disabled(selectedQuilt == nil)
+        }
+    }
+#endif
+
+    private var sidebarContent: some View {
+        VStack(spacing: 0) {
+            searchField
+            ZStack {
+                List(selection: $selectedQuiltID) {
+                    ForEach(visibleQuiltGroups) { group in
+                        Section(group.title) {
+                            ForEach(group.quilts) { quilt in
+                                QuiltRow(
+                                    quilt: quilt,
+                                    hideRecipient: preferences.hideRecipientsOnScreen
+                                )
+                                    .tag(quilt.id)
                             }
                         }
                     }
-                    if visibleQuilts.isEmpty, isInitialCloudSyncActive {
-                        InitialCloudSyncView(message: store.cloudSyncStatus.message)
-                            .padding(20)
-                    }
                 }
-                syncStatusFooter
-            }
-            .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 420)
-        } detail: {
-            if displayMode == .gallery {
-                QuiltGalleryView(
-                    quiltGroups: visibleQuiltGroups,
-                    visibleCount: visibleQuilts.count,
-                    selectedQuiltID: $selectedQuiltID,
-                    displayMode: $displayMode,
-                    selectedQuilt: selectedQuilt,
-                    hideRecipients: preferences.hideRecipientsOnScreen
-                )
-            } else if let quilt = selectedQuilt {
-                QuiltDetailView(quilt: quilt)
-            } else {
-                if isInitialCloudSyncActive {
+                if visibleQuilts.isEmpty, isInitialCloudSyncActive {
                     InitialCloudSyncView(message: store.cloudSyncStatus.message)
-                } else {
-                    ContentUnavailableView("No Quilt Selected", systemImage: "square.grid.2x2")
+                        .padding(20)
                 }
             }
+            syncStatusFooter
         }
-        .toolbar {
-            ToolbarItem {
-                Picker("View", selection: $displayMode) {
-                    Label("List", systemImage: "list.bullet").tag(DisplayMode.list)
-                    Label("Gallery", systemImage: "square.grid.3x3").tag(DisplayMode.gallery)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 150)
-                .help("Switch between list detail and visual gallery")
+        .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 420)
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        if displayMode == .gallery {
+            QuiltGalleryView(
+                quiltGroups: visibleQuiltGroups,
+                visibleCount: visibleQuilts.count,
+                selectedQuiltID: $selectedQuiltID,
+                displayMode: $displayMode,
+                selectedQuilt: selectedQuilt,
+                hideRecipients: preferences.hideRecipientsOnScreen
+            )
+        } else if let quilt = selectedQuilt {
+            QuiltDetailView(quilt: quilt)
+        } else if isInitialCloudSyncActive {
+            InitialCloudSyncView(message: store.cloudSyncStatus.message)
+        } else {
+            ContentUnavailableView("No Quilt Selected", systemImage: "square.grid.2x2")
+        }
+    }
+
+#if os(iOS)
+    private var iPadCommandBar: some View {
+        HStack(spacing: 10) {
+            Button {
+                columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+            } label: {
+                Image(systemName: "sidebar.left")
             }
+            .accessibilityLabel(columnVisibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar")
 
-            ToolbarItemGroup {
-                Button {
-                    sortOrder.toggle()
-                } label: {
-                    Image(systemName: "arrow.up.arrow.down")
-                }
-                .accessibilityLabel(sortOrder.title)
-                .help(sortOrder.helpText)
+            Picker("View", selection: $displayMode) {
+                Label("List", systemImage: "list.bullet").tag(DisplayMode.list)
+                Label("Gallery", systemImage: "square.grid.3x3").tag(DisplayMode.gallery)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 150)
 
+            Button {
+                sortOrder.toggle()
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+            }
+            .accessibilityLabel(sortOrder.title)
+
+            Menu {
                 Picker("Group", selection: $groupingMode) {
                     ForEach(QuiltGroupingMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
                 }
-                .labelsHidden()
-                .frame(width: 115)
-                .help("Group quilts")
+            } label: {
+                Image(systemName: "rectangle.3.group")
+            }
+            .accessibilityLabel("Group Quilts")
 
+            Menu {
                 Picker("Show", selection: $availabilityFilter) {
                     ForEach(QuiltAvailabilityFilter.allOptions) { filter in
                         Text(filter.title).tag(filter)
                     }
                 }
-                .labelsHidden()
-                .frame(width: 155)
-                .help("Filter quilts")
+            } label: {
+                Image(systemName: "line.3.horizontal.decrease.circle")
             }
+            .accessibilityLabel("Filter Quilts")
 
-            ToolbarItemGroup {
-                Button {
-                    Task {
-                        if let newID = await store.createQuilt() {
-                            selectedQuiltID = newID
-                        }
+            Spacer(minLength: 0)
+
+            Menu {
+                ForEach(PDFExportPreset.allCases) { preset in
+                    Button {
+                        sharePDF(preset)
+                    } label: {
+                        Label(preset.title, systemImage: "doc.richtext")
                     }
-                } label: {
-                    Label("New Quilt", systemImage: "plus")
                 }
-                .help("Create a new quilt record")
-
-#if os(macOS)
-                Button {
-                    showingPDFExport = true
-                } label: {
-                    Label("Export PDF", systemImage: "square.and.arrow.up")
-                }
-                .help("Choose a PDF export format")
-#endif
-
-                Button {
-                    showingDeleteConfirmation = true
-                } label: {
-                    Label("Delete Quilt", systemImage: "trash")
-                }
-                .help("Delete the selected quilt record")
-                .disabled(selectedQuilt == nil)
+            } label: {
+                Image(systemName: "square.and.arrow.up")
             }
-        }
-#if os(macOS)
-        .sheet(isPresented: $showingPDFExport) {
-            PDFExportSheet()
-                .environmentObject(store)
-        }
-#endif
-        .alert("Quilt Log", isPresented: Binding(
-            get: { store.errorMessage != nil },
-            set: { if !$0 { store.errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { store.errorMessage = nil }
-        } message: {
-            Text(store.errorMessage ?? "")
-        }
-        .confirmationDialog(
-            "Delete quilt?",
-            isPresented: $showingDeleteConfirmation,
-            presenting: selectedQuilt
-        ) { quilt in
-            Button("Delete Quilt", role: .destructive) {
+            .accessibilityLabel("Share PDF")
+
+            Button {
                 Task {
-                    await store.deleteQuilt(id: quilt.id)
-                    selectedQuiltID = store.quilts.first?.id
+                    if let newID = await store.createQuilt() {
+                        selectedQuiltID = newID
+                        displayMode = .list
+                    }
                 }
+            } label: {
+                Image(systemName: "plus")
             }
-            Button("Cancel", role: .cancel) {}
-        } message: { quilt in
-            Text("This will permanently delete “\(quilt.quiltName)” and its stored photos, then close the sequence-number gap.")
-        }
-        .onChange(of: visibleQuilts) { _, quilts in
-            if selectedQuiltID == nil || !quilts.contains(where: { $0.id == selectedQuiltID }) {
-                selectedQuiltID = quilts.first?.id
+            .accessibilityLabel("New Quilt")
+
+            Button {
+                showingDeleteConfirmation = true
+            } label: {
+                Image(systemName: "trash")
             }
+            .disabled(selectedQuilt == nil)
+            .accessibilityLabel("Delete Quilt")
         }
-        .onAppear {
-            displayMode = DisplayMode(rawValue: preferences.contentDisplayMode) ?? .list
-            sortOrder = QuiltSortOrder(rawValue: preferences.contentSortOrder) ?? .oldestFirst
-            groupingMode = QuiltGroupingMode(rawValue: preferences.contentGroupingMode) ?? .status
-            availabilityFilter = QuiltAvailabilityFilter(preferenceValue: preferences.contentAvailabilityFilter)
-        }
-        .onChange(of: displayMode) { _, mode in
-            preferences.contentDisplayMode = mode.rawValue
-        }
-        .onChange(of: sortOrder) { _, order in
-            preferences.contentSortOrder = order.rawValue
-        }
-        .onChange(of: groupingMode) { _, mode in
-            preferences.contentGroupingMode = mode.rawValue
-        }
-        .onChange(of: availabilityFilter) { _, filter in
-            preferences.contentAvailabilityFilter = filter.preferenceValue
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .focusQuiltSearch)) { _ in
-            searchFocusRequest += 1
+        .buttonStyle(.bordered)
+        .controlSize(.regular)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.thinMaterial)
+    }
+
+    private func sharePDF(_ preset: PDFExportPreset) {
+        do {
+            let url = try store.temporaryPDFExportURL(
+                for: preset,
+                ownerName: preferences.exportOwnerName
+            )
+            pdfShareItem = PDFShareItem(url: url)
+        } catch {
+            store.errorMessage = error.localizedDescription
         }
     }
+#endif
 
     private var searchField: some View {
         HStack {
@@ -303,6 +449,23 @@ private struct InitialCloudSyncView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+
+#if os(iOS)
+private struct PDFShareItem: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+private struct PDFActivityView: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+#endif
 
 private struct SearchTextField: View {
     let placeholder: String
@@ -568,6 +731,9 @@ private struct QuiltGalleryView: View {
     @Binding var displayMode: DisplayMode
     let selectedQuilt: Quilt?
     let hideRecipients: Bool
+#if os(iOS)
+    @State private var showingInspector = false
+#endif
 
     private let columns = [
         GridItem(.adaptive(minimum: 170, maximum: 220), spacing: 14)
@@ -615,16 +781,30 @@ private struct QuiltGalleryView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
+#if os(macOS)
             Divider()
 
             GalleryInspector(
                 quilt: selectedQuilt,
                 coverPhoto: selectedQuilt.flatMap(coverPhoto(for:)),
                 displayMode: $displayMode,
-                hideRecipient: hideRecipients
+                hideRecipient: hideRecipients,
+                onEditDetails: {}
             )
             .frame(width: 320)
+#endif
         }
+#if os(iOS)
+        .sheet(isPresented: $showingInspector) {
+            GalleryInspector(
+                quilt: selectedQuilt,
+                coverPhoto: selectedQuilt.flatMap(coverPhoto(for:)),
+                displayMode: $displayMode,
+                hideRecipient: hideRecipients,
+                onEditDetails: { showingInspector = false }
+            )
+        }
+#endif
     }
 
     private var galleryHeader: some View {
@@ -637,6 +817,16 @@ private struct QuiltGalleryView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+#if os(iOS)
+            Button {
+                showingInspector = true
+            } label: {
+                Image(systemName: "info.circle")
+            }
+            .buttonStyle(.bordered)
+            .disabled(selectedQuilt == nil)
+            .accessibilityLabel("Show Quilt Details")
+#endif
         }
         .padding(.horizontal, 20)
         .padding(.top, 18)
@@ -743,6 +933,7 @@ private struct GalleryInspector: View {
     let coverPhoto: QuiltPhoto?
     @Binding var displayMode: DisplayMode
     let hideRecipient: Bool
+    let onEditDetails: () -> Void
 
     var body: some View {
         if let quilt {
@@ -783,6 +974,7 @@ private struct GalleryInspector: View {
 
                     Button {
                         displayMode = .list
+                        onEditDetails()
                     } label: {
                         Label("Edit Details", systemImage: "square.and.pencil")
                             .frame(maxWidth: .infinity)

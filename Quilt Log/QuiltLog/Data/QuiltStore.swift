@@ -301,14 +301,15 @@ final class QuiltStore: ObservableObject {
     }
 
     func exportPDF(_ preset: PDFExportPreset, to url: URL, ownerName: String) {
-#if os(macOS)
         do {
+#if os(macOS)
             let didStartAccess = url.startAccessingSecurityScopedResource()
             defer {
                 if didStartAccess {
                     url.stopAccessingSecurityScopedResource()
                 }
             }
+#endif
             try PDFExportService.export(
                 preset: preset,
                 ownerName: ownerName,
@@ -319,9 +320,24 @@ final class QuiltStore: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
-#else
-        errorMessage = BackupExportError.unsupportedOnThisPlatform.localizedDescription
-#endif
+    }
+
+    func temporaryPDFExportURL(for preset: PDFExportPreset, ownerName: String) throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuiltLogPDFExports", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent(preset.datedDefaultFilename)
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+        try PDFExportService.export(
+            preset: preset,
+            ownerName: ownerName,
+            quilts: filteredQuilts,
+            photosByQuiltID: photosByQuiltID,
+            to: url
+        )
+        return url
     }
 
     func exportJSONBackup(to url: URL) throws {
@@ -442,7 +458,7 @@ final class QuiltStore: ObservableObject {
         } else if event.endDate != nil {
             cloudSyncStatus = CloudSyncStatus(
                 phase: .idle,
-                message: "\(action) finished",
+                message: "iCloud synchronized",
                 lastUpdated: event.endDate
             )
             refreshAfterCloudKitImportIfNeeded(event)
