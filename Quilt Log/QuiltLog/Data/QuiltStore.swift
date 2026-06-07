@@ -1,10 +1,49 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
-import AppKit
+import CoreGraphics
+import CoreData
 import Foundation
 import ImageIO
 import SQLite3
+import SwiftData
+
+struct CloudSyncStatus: Equatable {
+    enum Phase: Equatable {
+        case waiting
+        case settingUp
+        case importing
+        case exporting
+        case idle
+        case failed
+    }
+
+    var phase: Phase = .waiting
+    var message = "Cloud sync pending"
+    var lastUpdated: Date?
+
+    var systemImage: String {
+        switch phase {
+        case .waiting: "icloud"
+        case .settingUp: "icloud"
+        case .importing: "icloud.and.arrow.down"
+        case .exporting: "icloud.and.arrow.up"
+        case .idle: "checkmark.icloud"
+        case .failed: "exclamationmark.icloud"
+        }
+    }
+}
+
+struct MigrationProgress: Equatable {
+    var completed: Int
+    var total: Int
+    var message: String
+
+    var fractionCompleted: Double {
+        guard total > 0 else { return 0 }
+        return Double(completed) / Double(total)
+    }
+}
 
 @MainActor
 final class QuiltStore: ObservableObject {
@@ -14,19 +53,30 @@ final class QuiltStore: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var databaseGeneration = 0
     @Published private(set) var databaseURL: URL?
+    @Published private(set) var migrationProgress: MigrationProgress?
+    @Published private(set) var cloudSyncStatus = CloudSyncStatus()
 
-    private var database: SQLiteDatabase?
+    private let context: ModelContext
+    private var quiltUUIDByID: [Int64: String] = [:]
+    private var photoUUIDByID: [Int64: String] = [:]
+    private var cloudKitEventObserver: NSObjectProtocol?
+
     private static let thumbnailMaxSide: CGFloat = 240
     private static let thumbnailJPEGCompression: CGFloat = 0.64
     private static let applicationSupportFolderName = "Quilt Log"
-    private static let applicationDatabaseFilename = "Quilt Log.sqlite"
-    private static let databaseBookmarkKey = "databaseBookmark"
-    private static let legacyDatabasePathKey = "lastOpenedDatabasePath"
+    private static let legacyDatabaseFilename = "Quilt Log.sqlite"
+    private static let migrationCompleteKey = "legacySQLiteMigrationComplete"
+    private static let backupFormatVersion = 1
 
-    private enum DatabaseCompatibility: Equatable {
-        case quiltLog
-        case sqliteButNotQuiltLog
-        case notSQLite
+    init(modelContainer: ModelContainer) {
+        context = ModelContext(modelContainer)
+        observeCloudKitEvents()
+    }
+
+    deinit {
+        if let cloudKitEventObserver {
+            NotificationCenter.default.removeObserver(cloudKitEventObserver)
+        }
     }
 
     var filteredQuilts: [Quilt] {
@@ -37,156 +87,34 @@ final class QuiltStore: ObservableObject {
         }
     }
 
-    private func searchableText(for quilt: Quilt) -> String {
-        [
-            String(quilt.sequenceNumber),
-            quilt.quiltName,
-            quilt.patternName,
-            quilt.fabricReminder,
-            quilt.approxSize,
-            quilt.quiltDate,
-            quilt.status,
-            quilt.giftedAlready ? "gifted gifted already yes" : "not gifted no",
-            quilt.recipient,
-            quilt.notes
-        ]
-        .joined(separator: " ")
-        .lowercased()
-    }
-
     func load() async {
         do {
-            try openApplicationDatabase()
+            databaseURL = try Self.legacyDatabaseURL()
+            try await migrateLegacySQLiteIfNeeded()
+            try fetchQuilts()
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func openApplicationDatabase() throws {
-        let url = try Self.applicationDatabaseURL()
-        if !FileManager.default.fileExists(atPath: url.path) {
-            if let legacyURL = try Self.bookmarkedDatabaseURL(),
-               Self.databaseCompatibility(at: legacyURL) == .quiltLog {
-                try Self.replaceApplicationDatabase(with: legacyURL)
-                Self.clearSavedDatabaseBookmark()
-            } else {
-                try Self.createEmptyDatabase(at: url)
-            }
-        }
-        try openOwnedDatabase(at: url)
-    }
-
-    private func openOwnedDatabase(at url: URL) throws {
-        let openedDatabase = try SQLiteDatabase(path: url)
-        try Self.validateQuiltLogDatabase(openedDatabase)
-        database = openedDatabase
-        databaseURL = url
-        databaseGeneration += 1
-        try fetchQuilts()
-    }
-
-    func importDatabase(from url: URL) throws {
-        let didStartAccess = url.startAccessingSecurityScopedResource()
-        defer {
-            if didStartAccess {
-                url.stopAccessingSecurityScopedResource()
-            }
-        }
-
-        let importedDatabase = try SQLiteDatabase(path: url)
-        try Self.validateQuiltLogDatabase(importedDatabase)
-        database = nil
-        databaseURL = nil
-        do {
-            try Self.replaceApplicationDatabase(with: url)
-            try openOwnedDatabase(at: Self.applicationDatabaseURL())
-        } catch {
-            try? openOwnedDatabase(at: Self.applicationDatabaseURL())
-            throw error
-        }
-    }
-
-    func exportDatabase(to url: URL) throws {
-        guard let database else { return }
-        let didStartAccess = url.startAccessingSecurityScopedResource()
-        defer {
-            if didStartAccess {
-                url.stopAccessingSecurityScopedResource()
-            }
-        }
-
-        let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: url.path) {
-            try fileManager.removeItem(at: url)
-        }
-        try database.backup(to: url)
-    }
-
-    func resetDatabase() throws {
-        database = nil
-        databaseURL = nil
-        let url = try Self.applicationDatabaseURL()
-        try Self.removeDatabaseFiles(at: url)
-        try Self.createEmptyDatabase(at: url)
-        try openOwnedDatabase(at: url)
-    }
-
     func fetchQuilts() throws {
-        guard let database else { return }
-        quilts = try database.query(
-            """
-            SELECT id, sequence_number, quilt_name, pattern_name, fabric_reminder, approx_size,
-                   COALESCE(quilt_date, ''), status, gifted_already, recipient, notes
-            FROM quilts
-            ORDER BY sequence_number
-            """
-        ) { statement in
-            Quilt(
-                id: sqlite3_column_int64(statement, 0),
-                sequenceNumber: Int(sqlite3_column_int(statement, 1)),
-                quiltName: SQLiteDatabase.columnString(statement, 2),
-                patternName: SQLiteDatabase.columnString(statement, 3),
-                fabricReminder: SQLiteDatabase.columnString(statement, 4),
-                approxSize: SQLiteDatabase.columnString(statement, 5),
-                quiltDate: SQLiteDatabase.columnString(statement, 6),
-                status: SQLiteDatabase.columnString(statement, 7),
-                giftedAlready: sqlite3_column_int(statement, 8) == 1,
-                recipient: SQLiteDatabase.columnString(statement, 9),
-                notes: SQLiteDatabase.columnString(statement, 10)
-            )
-        }
+        let records = try sortedQuiltRecords()
+        quiltUUIDByID = Dictionary(uniqueKeysWithValues: records.map { (Self.id(for: $0), $0.uuid) })
+        quilts = records.map(Self.quiltDTO)
         try fetchPhotos()
+        databaseGeneration += 1
     }
 
     @discardableResult
     func save(_ quilt: Quilt) async -> Bool {
         do {
-            guard let database else { return false }
+            guard let record = try quiltRecord(for: quilt.id) else { return false }
             if let conflict = try sequenceConflict(for: quilt) {
                 errorMessage = "Seq # \(quilt.sequenceNumber) is already used by “\(conflict.quiltName)”. Choose another sequence number before saving."
                 return false
             }
-            try database.run(
-                """
-                UPDATE quilts
-                SET sequence_number = ?, quilt_name = ?, pattern_name = ?, fabric_reminder = ?,
-                    approx_size = ?, quilt_date = ?, status = ?, gifted_already = ?,
-                    recipient = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """
-            ) { statement in
-                sqlite3_bind_int(statement, 1, Int32(quilt.sequenceNumber))
-                try SQLiteDatabase.bindText(quilt.quiltName, to: 2, in: statement)
-                try SQLiteDatabase.bindText(quilt.patternName, to: 3, in: statement)
-                try SQLiteDatabase.bindText(quilt.fabricReminder, to: 4, in: statement)
-                try SQLiteDatabase.bindText(quilt.approxSize, to: 5, in: statement)
-                try SQLiteDatabase.bindText(quilt.quiltDate.isEmpty ? nil : quilt.quiltDate, to: 6, in: statement)
-                try SQLiteDatabase.bindText(quilt.status, to: 7, in: statement)
-                sqlite3_bind_int(statement, 8, quilt.giftedAlready ? 1 : 0)
-                try SQLiteDatabase.bindText(quilt.recipient, to: 9, in: statement)
-                try SQLiteDatabase.bindText(quilt.notes, to: 10, in: statement)
-                sqlite3_bind_int64(statement, 11, quilt.id)
-            }
+            update(record, from: quilt)
+            try context.save()
             try fetchQuilts()
             return true
         } catch {
@@ -196,47 +124,23 @@ final class QuiltStore: ObservableObject {
     }
 
     func sequenceConflict(for quilt: Quilt) throws -> Quilt? {
-        guard let database else { return nil }
-        return try database.query(
-            """
-            SELECT id, sequence_number, quilt_name, pattern_name, fabric_reminder, approx_size,
-                   COALESCE(quilt_date, ''), status, gifted_already, recipient, notes
-            FROM quilts
-            WHERE sequence_number = ? AND id <> ?
-            LIMIT 1
-            """
-        ) { statement in
-            sqlite3_bind_int(statement, 1, Int32(quilt.sequenceNumber))
-            sqlite3_bind_int64(statement, 2, quilt.id)
-        } map: { statement in
-            Quilt(
-                id: sqlite3_column_int64(statement, 0),
-                sequenceNumber: Int(sqlite3_column_int(statement, 1)),
-                quiltName: SQLiteDatabase.columnString(statement, 2),
-                patternName: SQLiteDatabase.columnString(statement, 3),
-                fabricReminder: SQLiteDatabase.columnString(statement, 4),
-                approxSize: SQLiteDatabase.columnString(statement, 5),
-                quiltDate: SQLiteDatabase.columnString(statement, 6),
-                status: SQLiteDatabase.columnString(statement, 7),
-                giftedAlready: sqlite3_column_int(statement, 8) == 1,
-                recipient: SQLiteDatabase.columnString(statement, 9),
-                notes: SQLiteDatabase.columnString(statement, 10)
-            )
-        }.first
+        try sortedQuiltRecords()
+            .first { $0.sequenceNumber == quilt.sequenceNumber && Self.id(for: $0) != quilt.id }
+            .map(Self.quiltDTO)
     }
 
     func saveMakingSpace(for quilt: Quilt) async {
         do {
-            guard database != nil else { return }
-            guard let original = try fetchQuilt(withID: quilt.id) else {
+            guard let record = try quiltRecord(for: quilt.id) else {
                 errorMessage = "Could not find the quilt being edited."
                 return
             }
 
-            if original.sequenceNumber != quilt.sequenceNumber {
-                try renumberAroundMove(quiltID: quilt.id, from: original.sequenceNumber, to: quilt.sequenceNumber)
+            if record.sequenceNumber != quilt.sequenceNumber {
+                try renumberAroundMove(quiltID: quilt.id, from: record.sequenceNumber, to: quilt.sequenceNumber)
             }
-            try updateQuiltFields(quilt)
+            update(record, from: quilt)
+            try context.save()
             try fetchQuilts()
         } catch {
             errorMessage = error.localizedDescription
@@ -245,176 +149,29 @@ final class QuiltStore: ObservableObject {
 
     func repairSequenceGaps() async {
         do {
-            guard let database else { return }
-            let ids = try database.query(
-                """
-                SELECT id
-                FROM quilts
-                ORDER BY sequence_number, id
-                """
-            ) { statement in
-                sqlite3_column_int64(statement, 0)
+            for (index, record) in try sortedQuiltRecords().enumerated() {
+                record.sequenceNumber = index + 1
+                record.updatedAt = Date()
             }
-
-            let offset = 100_000
-            try database.execute("BEGIN IMMEDIATE TRANSACTION")
-            do {
-                for (index, id) in ids.enumerated() {
-                    try database.run(
-                        "UPDATE quilts SET sequence_number = ? WHERE id = ?"
-                    ) { statement in
-                        sqlite3_bind_int(statement, 1, Int32(offset + index + 1))
-                        sqlite3_bind_int64(statement, 2, id)
-                    }
-                }
-                try database.run(
-                    "UPDATE quilts SET sequence_number = sequence_number - ?"
-                ) { statement in
-                    sqlite3_bind_int(statement, 1, Int32(offset))
-                }
-                try database.execute("COMMIT")
-            } catch {
-                try? database.execute("ROLLBACK")
-                throw error
-            }
+            try context.save()
             try fetchQuilts()
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func fetchQuilt(withID id: Int64) throws -> Quilt? {
-        guard let database else { return nil }
-        return try database.query(
-            """
-            SELECT id, sequence_number, quilt_name, pattern_name, fabric_reminder, approx_size,
-                   COALESCE(quilt_date, ''), status, gifted_already, recipient, notes
-            FROM quilts
-            WHERE id = ?
-            LIMIT 1
-            """
-        ) { statement in
-            sqlite3_bind_int64(statement, 1, id)
-        } map: { statement in
-            Quilt(
-                id: sqlite3_column_int64(statement, 0),
-                sequenceNumber: Int(sqlite3_column_int(statement, 1)),
-                quiltName: SQLiteDatabase.columnString(statement, 2),
-                patternName: SQLiteDatabase.columnString(statement, 3),
-                fabricReminder: SQLiteDatabase.columnString(statement, 4),
-                approxSize: SQLiteDatabase.columnString(statement, 5),
-                quiltDate: SQLiteDatabase.columnString(statement, 6),
-                status: SQLiteDatabase.columnString(statement, 7),
-                giftedAlready: sqlite3_column_int(statement, 8) == 1,
-                recipient: SQLiteDatabase.columnString(statement, 9),
-                notes: SQLiteDatabase.columnString(statement, 10)
-            )
-        }.first
-    }
-
-    private func renumberAroundMove(quiltID: Int64, from oldSequence: Int, to newSequence: Int) throws {
-        guard let database else { return }
-        let offset = 100_000
-
-        try database.execute("BEGIN IMMEDIATE TRANSACTION")
-        do {
-            if newSequence < oldSequence {
-                try database.run(
-                    """
-                    UPDATE quilts
-                    SET sequence_number = sequence_number + ?
-                    WHERE id <> ? AND sequence_number >= ? AND sequence_number < ?
-                    """
-                ) { statement in
-                    sqlite3_bind_int(statement, 1, Int32(offset))
-                    sqlite3_bind_int64(statement, 2, quiltID)
-                    sqlite3_bind_int(statement, 3, Int32(newSequence))
-                    sqlite3_bind_int(statement, 4, Int32(oldSequence))
-                }
-                try database.run(
-                    """
-                    UPDATE quilts
-                    SET sequence_number = sequence_number - ?
-                    WHERE sequence_number >= ? AND sequence_number < ?
-                    """
-                ) { statement in
-                    sqlite3_bind_int(statement, 1, Int32(offset - 1))
-                    sqlite3_bind_int(statement, 2, Int32(newSequence + offset))
-                    sqlite3_bind_int(statement, 3, Int32(oldSequence + offset))
-                }
-            } else if newSequence > oldSequence {
-                try database.run(
-                    """
-                    UPDATE quilts
-                    SET sequence_number = sequence_number + ?
-                    WHERE id <> ? AND sequence_number > ? AND sequence_number <= ?
-                    """
-                ) { statement in
-                    sqlite3_bind_int(statement, 1, Int32(offset))
-                    sqlite3_bind_int64(statement, 2, quiltID)
-                    sqlite3_bind_int(statement, 3, Int32(oldSequence))
-                    sqlite3_bind_int(statement, 4, Int32(newSequence))
-                }
-                try database.run(
-                    """
-                    UPDATE quilts
-                    SET sequence_number = sequence_number - ?
-                    WHERE sequence_number > ? AND sequence_number <= ?
-                    """
-                ) { statement in
-                    sqlite3_bind_int(statement, 1, Int32(offset + 1))
-                    sqlite3_bind_int(statement, 2, Int32(oldSequence + offset))
-                    sqlite3_bind_int(statement, 3, Int32(newSequence + offset))
-                }
-            }
-            try database.execute("COMMIT")
-        } catch {
-            try? database.execute("ROLLBACK")
-            throw error
-        }
-    }
-
-    private func updateQuiltFields(_ quilt: Quilt) throws {
-        guard let database else { return }
-        try database.run(
-            """
-            UPDATE quilts
-            SET sequence_number = ?, quilt_name = ?, pattern_name = ?, fabric_reminder = ?,
-                approx_size = ?, quilt_date = ?, status = ?, gifted_already = ?,
-                recipient = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """
-        ) { statement in
-            sqlite3_bind_int(statement, 1, Int32(quilt.sequenceNumber))
-            try SQLiteDatabase.bindText(quilt.quiltName, to: 2, in: statement)
-            try SQLiteDatabase.bindText(quilt.patternName, to: 3, in: statement)
-            try SQLiteDatabase.bindText(quilt.fabricReminder, to: 4, in: statement)
-            try SQLiteDatabase.bindText(quilt.approxSize, to: 5, in: statement)
-            try SQLiteDatabase.bindText(quilt.quiltDate.isEmpty ? nil : quilt.quiltDate, to: 6, in: statement)
-            try SQLiteDatabase.bindText(quilt.status, to: 7, in: statement)
-            sqlite3_bind_int(statement, 8, quilt.giftedAlready ? 1 : 0)
-            try SQLiteDatabase.bindText(quilt.recipient, to: 9, in: statement)
-            try SQLiteDatabase.bindText(quilt.notes, to: 10, in: statement)
-            sqlite3_bind_int64(statement, 11, quilt.id)
-        }
-    }
-
     func createQuilt() async -> Int64? {
         do {
-            guard let database else { return nil }
             let nextSequence = (quilts.map(\.sequenceNumber).max() ?? 0) + 1
-            try database.run(
-                """
-                INSERT INTO quilts(sequence_number, quilt_name, status)
-                VALUES (?, 'Untitled Quilt', ?)
-                """
-            ) { statement in
-                sqlite3_bind_int(statement, 1, Int32(nextSequence))
-                try SQLiteDatabase.bindText(QuiltStatus.inProgress.rawValue, to: 2, in: statement)
-            }
-            let newID = database.lastInsertedRowID
+            let record = QuiltRecord(
+                legacyID: try nextLegacyQuiltID(),
+                sequenceNumber: nextSequence,
+                quiltName: "Untitled Quilt"
+            )
+            context.insert(record)
+            try context.save()
             try fetchQuilts()
-            return newID
+            return Self.id(for: record)
         } catch {
             errorMessage = error.localizedDescription
             return nil
@@ -423,10 +180,12 @@ final class QuiltStore: ObservableObject {
 
     func deleteQuilt(id: Int64) async {
         do {
-            guard let database else { return }
-            try database.run("DELETE FROM quilts WHERE id = ?") { statement in
-                sqlite3_bind_int64(statement, 1, id)
+            guard let record = try quiltRecord(for: id) else { return }
+            for photo in record.photos ?? [] {
+                context.delete(photo)
             }
+            context.delete(record)
+            try context.save()
             await repairSequenceGaps()
         } catch {
             errorMessage = error.localizedDescription
@@ -448,43 +207,31 @@ final class QuiltStore: ObservableObject {
     }
 
     func addPhoto(to quilt: Quilt, data: Data, mimeType: String) throws {
-        guard let database else { return }
-        let thumbnail = Self.thumbnailJPEGData(for: data)
-        let nextSort = (photosByQuiltID[quilt.id]?.map(\.sortOrder).max() ?? -1) + 1
-        let isFirst = (photosByQuiltID[quilt.id] ?? []).isEmpty
-
-        try database.run(
-            """
-            INSERT INTO photos(quilt_id, image_data, thumbnail_data, mime_type, caption, sort_order, is_cover)
-            VALUES (?, ?, ?, ?, '', ?, ?)
-            """
-        ) { statement in
-            sqlite3_bind_int64(statement, 1, quilt.id)
-            try SQLiteDatabase.bindData(data, to: 2, in: statement)
-            try SQLiteDatabase.bindData(thumbnail, to: 3, in: statement)
-            try SQLiteDatabase.bindText(mimeType, to: 4, in: statement)
-            sqlite3_bind_int(statement, 5, Int32(nextSort))
-            sqlite3_bind_int(statement, 6, isFirst ? 1 : 0)
-        }
+        guard let quiltRecord = try quiltRecord(for: quilt.id) else { return }
+        let photos = sortedPhotos(for: quiltRecord)
+        let isFirst = photos.isEmpty
+        let photo = QuiltPhotoRecord(
+            legacyID: try nextLegacyPhotoID(),
+            mimeType: mimeType,
+            sortOrder: (photos.map(\.sortOrder).max() ?? -1) + 1,
+            isCover: isFirst,
+            imageData: data,
+            thumbnailData: Self.thumbnailJPEGData(for: data),
+            quilt: quiltRecord
+        )
+        context.insert(photo)
+        try context.save()
         try fetchPhotos()
     }
 
     func setCoverPhoto(_ photo: QuiltPhoto) async {
         do {
-            guard let database else { return }
-            try database.execute("BEGIN IMMEDIATE TRANSACTION")
-            do {
-                try database.run("UPDATE photos SET is_cover = 0 WHERE quilt_id = ?") { statement in
-                    sqlite3_bind_int64(statement, 1, photo.quiltID)
-                }
-                try database.run("UPDATE photos SET is_cover = 1 WHERE id = ?") { statement in
-                    sqlite3_bind_int64(statement, 1, photo.id)
-                }
-                try database.execute("COMMIT")
-            } catch {
-                try? database.execute("ROLLBACK")
-                throw error
+            guard let photoRecord = try photoRecord(for: photo.id),
+                  let quiltRecord = photoRecord.quilt else { return }
+            for sibling in sortedPhotos(for: quiltRecord) {
+                sibling.isCover = sibling.uuid == photoRecord.uuid
             }
+            try context.save()
             try fetchPhotos()
         } catch {
             errorMessage = error.localizedDescription
@@ -493,27 +240,17 @@ final class QuiltStore: ObservableObject {
 
     func movePhoto(_ photo: QuiltPhoto, by offset: Int) async {
         do {
-            guard let database else { return }
-            var photos = photosByQuiltID[photo.quiltID] ?? []
-            photos.sort { $0.sortOrder == $1.sortOrder ? $0.id < $1.id : $0.sortOrder < $1.sortOrder }
-            guard let currentIndex = photos.firstIndex(where: { $0.id == photo.id }) else { return }
+            guard let photoRecord = try photoRecord(for: photo.id),
+                  let quiltRecord = photoRecord.quilt else { return }
+            var photos = sortedPhotos(for: quiltRecord)
+            guard let currentIndex = photos.firstIndex(where: { $0.uuid == photoRecord.uuid }) else { return }
             let targetIndex = currentIndex + offset
             guard photos.indices.contains(targetIndex) else { return }
-
             photos.swapAt(currentIndex, targetIndex)
-            try database.execute("BEGIN IMMEDIATE TRANSACTION")
-            do {
-                for (index, photo) in photos.enumerated() {
-                    try database.run("UPDATE photos SET sort_order = ? WHERE id = ?") { statement in
-                        sqlite3_bind_int(statement, 1, Int32(index))
-                        sqlite3_bind_int64(statement, 2, photo.id)
-                    }
-                }
-                try database.execute("COMMIT")
-            } catch {
-                try? database.execute("ROLLBACK")
-                throw error
+            for (index, photo) in photos.enumerated() {
+                photo.sortOrder = index
             }
+            try context.save()
             try fetchPhotos()
         } catch {
             errorMessage = error.localizedDescription
@@ -522,45 +259,19 @@ final class QuiltStore: ObservableObject {
 
     func deletePhoto(_ photo: QuiltPhoto) async {
         do {
-            guard let database else { return }
-            try database.execute("BEGIN IMMEDIATE TRANSACTION")
-            do {
-                try database.run("DELETE FROM photos WHERE id = ?") { statement in
-                    sqlite3_bind_int64(statement, 1, photo.id)
-                }
-                let remainingIDs = try database.query(
-                    "SELECT id FROM photos WHERE quilt_id = ? ORDER BY sort_order, id"
-                ) { statement in
-                    sqlite3_bind_int64(statement, 1, photo.quiltID)
-                } map: { statement in
-                    sqlite3_column_int64(statement, 0)
-                }
-                for (index, id) in remainingIDs.enumerated() {
-                    try database.run("UPDATE photos SET sort_order = ? WHERE id = ?") { statement in
-                        sqlite3_bind_int(statement, 1, Int32(index))
-                        sqlite3_bind_int64(statement, 2, id)
-                    }
-                }
-                if !remainingIDs.isEmpty {
-                    let coverCount = try database.query(
-                        "SELECT COUNT(*) FROM photos WHERE quilt_id = ? AND is_cover = 1"
-                    ) { statement in
-                        sqlite3_bind_int64(statement, 1, photo.quiltID)
-                    } map: { statement in
-                        Int(sqlite3_column_int(statement, 0))
-                    }.first ?? 0
+            guard let photoRecord = try photoRecord(for: photo.id),
+                  let quiltRecord = photoRecord.quilt else { return }
+            context.delete(photoRecord)
+            try context.save()
 
-                    if coverCount == 0 {
-                        try database.run("UPDATE photos SET is_cover = 1 WHERE id = ?") { statement in
-                            sqlite3_bind_int64(statement, 1, remainingIDs[0])
-                        }
-                    }
-                }
-                try database.execute("COMMIT")
-            } catch {
-                try? database.execute("ROLLBACK")
-                throw error
+            let remainingPhotos = sortedPhotos(for: quiltRecord)
+            for (index, photo) in remainingPhotos.enumerated() {
+                photo.sortOrder = index
             }
+            if !remainingPhotos.isEmpty, !remainingPhotos.contains(where: \.isCover) {
+                remainingPhotos[0].isCover = true
+            }
+            try context.save()
             try fetchPhotos()
         } catch {
             errorMessage = error.localizedDescription
@@ -591,54 +302,451 @@ final class QuiltStore: ObservableObject {
         }
     }
 
+    func exportJSONBackup(to url: URL) throws {
+        let didStartAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuiltLogBackup-\(UUID().uuidString)", isDirectory: true)
+        let imagesDirectory = temporaryDirectory.appendingPathComponent("images", isDirectory: true)
+        let thumbnailsDirectory = temporaryDirectory.appendingPathComponent("thumbnails", isDirectory: true)
+        try FileManager.default.createDirectory(at: imagesDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: thumbnailsDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let backup = try backupManifest(
+            imagesDirectory: imagesDirectory,
+            thumbnailsDirectory: thumbnailsDirectory
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(backup).write(to: temporaryDirectory.appendingPathComponent("manifest.json"))
+
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+        try zip(directory: temporaryDirectory, to: url)
+    }
+
+    func importDatabase(from url: URL) async throws {
+        try await importLegacySQLite(from: url)
+    }
+
+    func exportDatabase(to url: URL) throws {
+        try exportJSONBackup(to: url)
+    }
+
+    func resetDatabase() throws {
+        for photo in try context.fetch(FetchDescriptor<QuiltPhotoRecord>()) {
+            context.delete(photo)
+        }
+        for quilt in try context.fetch(FetchDescriptor<QuiltRecord>()) {
+            context.delete(quilt)
+        }
+        for metadata in try context.fetch(FetchDescriptor<QuiltLogMetadata>()) {
+            context.delete(metadata)
+        }
+        try context.save()
+        try fetchQuilts()
+    }
+
+    private func migrateLegacySQLiteIfNeeded() async throws {
+        guard try sortedQuiltRecords().isEmpty else { return }
+        guard try metadataValue(for: Self.migrationCompleteKey) != "true" else { return }
+        let legacyURL = try Self.legacyDatabaseURL()
+        guard FileManager.default.fileExists(atPath: legacyURL.path) else { return }
+        try await importLegacySQLite(from: legacyURL)
+        try setMetadataValue("true", for: Self.migrationCompleteKey)
+    }
+
+    private func observeCloudKitEvents() {
+        cloudKitEventObserver = NotificationCenter.default.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                as? NSPersistentCloudKitContainer.Event else {
+                return
+            }
+            Task { @MainActor [weak self] in
+                self?.updateCloudSyncStatus(from: event)
+            }
+        }
+    }
+
+    private func updateCloudSyncStatus(from event: NSPersistentCloudKitContainer.Event) {
+        let phase: CloudSyncStatus.Phase
+        let action: String
+        switch event.type {
+        case .setup:
+            phase = .settingUp
+            action = "Cloud sync setup"
+        case .import:
+            phase = .importing
+            action = "Cloud import"
+        case .export:
+            phase = .exporting
+            action = "Cloud export"
+        @unknown default:
+            phase = .waiting
+            action = "Cloud sync"
+        }
+
+        if let error = event.error, !Self.isTransientCloudKitQueueError(error) {
+            cloudSyncStatus = CloudSyncStatus(
+                phase: .failed,
+                message: "\(action) failed: \(error.localizedDescription)",
+                lastUpdated: event.endDate ?? Date()
+            )
+        } else if Self.isTransientCloudKitQueueError(event.error) {
+            cloudSyncStatus = CloudSyncStatus(
+                phase: phase,
+                message: "\(action) already in progress",
+                lastUpdated: event.endDate ?? Date()
+            )
+        } else if event.endDate != nil {
+            cloudSyncStatus = CloudSyncStatus(
+                phase: .idle,
+                message: "\(action) finished",
+                lastUpdated: event.endDate
+            )
+        } else {
+            cloudSyncStatus = CloudSyncStatus(
+                phase: phase,
+                message: "\(action) in progress",
+                lastUpdated: event.startDate
+            )
+        }
+    }
+
+    private static func isTransientCloudKitQueueError(_ error: Error?) -> Bool {
+        guard let error = error as NSError? else { return false }
+        return error.domain == NSCocoaErrorDomain && error.code == 134417
+    }
+
+    private func importLegacySQLite(from url: URL) async throws {
+        let didStartAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        migrationProgress = MigrationProgress(completed: 0, total: 1, message: "Reading legacy SQLite library...")
+        await Task.yield()
+
+        let database = try SQLiteDatabase(path: url)
+        try Self.validateLegacyDatabase(database)
+        let quiltRows = try Self.legacyQuilts(from: database)
+        let photoRows = try Self.legacyPhotos(from: database)
+        let total = max(quiltRows.count + photoRows.count, 1)
+
+        migrationProgress = MigrationProgress(completed: 0, total: total, message: "Preparing SwiftData library...")
+        await Task.yield()
+        var importedQuiltsByLegacyID: [Int64: QuiltRecord] = [:]
+
+        for (index, row) in quiltRows.enumerated() {
+            let record = QuiltRecord(
+                legacyID: row.id,
+                sequenceNumber: row.sequenceNumber,
+                quiltName: row.quiltName,
+                patternName: row.patternName,
+                fabricReminder: row.fabricReminder,
+                approxSize: row.approxSize,
+                quiltDate: row.quiltDate,
+                status: row.status,
+                giftedAlready: row.giftedAlready,
+                recipient: row.recipient,
+                notes: row.notes,
+                createdAt: row.createdAt,
+                updatedAt: row.updatedAt
+            )
+            context.insert(record)
+            importedQuiltsByLegacyID[row.id] = record
+            migrationProgress = MigrationProgress(
+                completed: index + 1,
+                total: total,
+                message: "Imported quilt \(row.sequenceNumber): \(row.quiltName)"
+            )
+            await Task.yield()
+        }
+        try context.save()
+        await Task.yield()
+
+        for (index, row) in photoRows.enumerated() {
+            guard let quiltRecord = importedQuiltsByLegacyID[row.quiltID] else { continue }
+            let photo = QuiltPhotoRecord(
+                legacyID: row.id,
+                mimeType: row.mimeType,
+                caption: row.caption,
+                sortOrder: row.sortOrder,
+                isCover: row.isCover,
+                createdAt: row.createdAt,
+                imageData: row.imageData,
+                thumbnailData: row.thumbnailData,
+                quilt: quiltRecord
+            )
+            context.insert(photo)
+            migrationProgress = MigrationProgress(
+                completed: quiltRows.count + index + 1,
+                total: total,
+                message: "Imported photo \(index + 1) of \(photoRows.count)"
+            )
+            if index.isMultiple(of: 10) {
+                try context.save()
+                await Task.yield()
+            }
+        }
+
+        try context.save()
+        migrationProgress = nil
+        try fetchQuilts()
+    }
+
     private func fetchPhotos() throws {
-        guard let database else { return }
-        let photos = try database.query(
-            """
-            SELECT id, quilt_id, thumbnail_data, mime_type, caption, sort_order, is_cover
-            FROM photos
-            ORDER BY quilt_id, sort_order
-            """
-        ) { statement in
-            QuiltPhoto(
-                id: sqlite3_column_int64(statement, 0),
-                quiltID: sqlite3_column_int64(statement, 1),
-                thumbnailData: SQLiteDatabase.columnData(statement, 2),
-                mimeType: SQLiteDatabase.columnString(statement, 3),
-                caption: SQLiteDatabase.columnString(statement, 4),
-                sortOrder: Int(sqlite3_column_int(statement, 5)),
-                isCover: sqlite3_column_int(statement, 6) == 1
+        let records = try context.fetch(FetchDescriptor<QuiltPhotoRecord>())
+        photoUUIDByID = Dictionary(uniqueKeysWithValues: records.map { (Self.id(for: $0), $0.uuid) })
+        let photos = records.compactMap(Self.photoDTO)
+        photosByQuiltID = Dictionary(grouping: photos, by: \.quiltID).mapValues {
+            $0.sorted { $0.sortOrder == $1.sortOrder ? $0.id < $1.id : $0.sortOrder < $1.sortOrder }
+        }
+    }
+
+    private func searchableText(for quilt: Quilt) -> String {
+        [
+            String(quilt.sequenceNumber),
+            quilt.quiltName,
+            quilt.patternName,
+            quilt.fabricReminder,
+            quilt.approxSize,
+            quilt.quiltDate,
+            quilt.status,
+            quilt.giftedAlready ? "gifted gifted already yes" : "not gifted no",
+            quilt.recipient,
+            quilt.notes
+        ]
+        .joined(separator: " ")
+        .lowercased()
+    }
+
+    private func sortedQuiltRecords() throws -> [QuiltRecord] {
+        var descriptor = FetchDescriptor<QuiltRecord>(
+            sortBy: [
+                SortDescriptor(\.sequenceNumber),
+                SortDescriptor(\.quiltName)
+            ]
+        )
+        descriptor.relationshipKeyPathsForPrefetching = [\.photos]
+        return try context.fetch(descriptor)
+    }
+
+    private func sortedPhotos(for quilt: QuiltRecord) -> [QuiltPhotoRecord] {
+        (quilt.photos ?? []).sorted {
+            $0.sortOrder == $1.sortOrder ? $0.uuid < $1.uuid : $0.sortOrder < $1.sortOrder
+        }
+    }
+
+    private func quiltRecord(for id: Int64) throws -> QuiltRecord? {
+        if let uuid = quiltUUIDByID[id] {
+            let descriptor = FetchDescriptor<QuiltRecord>(
+                predicate: #Predicate { $0.uuid == uuid }
+            )
+            return try context.fetch(descriptor).first
+        }
+        return try sortedQuiltRecords().first { Self.id(for: $0) == id }
+    }
+
+    private func photoRecord(for id: Int64) throws -> QuiltPhotoRecord? {
+        if let uuid = photoUUIDByID[id] {
+            let descriptor = FetchDescriptor<QuiltPhotoRecord>(
+                predicate: #Predicate { $0.uuid == uuid }
+            )
+            return try context.fetch(descriptor).first
+        }
+        return try context.fetch(FetchDescriptor<QuiltPhotoRecord>()).first { Self.id(for: $0) == id }
+    }
+
+    private func update(_ record: QuiltRecord, from quilt: Quilt) {
+        record.sequenceNumber = quilt.sequenceNumber
+        record.quiltName = quilt.quiltName
+        record.patternName = quilt.patternName
+        record.fabricReminder = quilt.fabricReminder
+        record.approxSize = quilt.approxSize
+        record.quiltDate = quilt.quiltDate
+        record.status = quilt.status
+        record.giftedAlready = quilt.giftedAlready
+        record.recipient = quilt.recipient
+        record.notes = quilt.notes
+        record.updatedAt = Date()
+    }
+
+    private func renumberAroundMove(quiltID: Int64, from oldSequence: Int, to newSequence: Int) throws {
+        let records = try sortedQuiltRecords()
+        if newSequence < oldSequence {
+            for record in records where Self.id(for: record) != quiltID
+                && record.sequenceNumber >= newSequence
+                && record.sequenceNumber < oldSequence {
+                record.sequenceNumber += 1
+                record.updatedAt = Date()
+            }
+        } else if newSequence > oldSequence {
+            for record in records where Self.id(for: record) != quiltID
+                && record.sequenceNumber > oldSequence
+                && record.sequenceNumber <= newSequence {
+                record.sequenceNumber -= 1
+                record.updatedAt = Date()
+            }
+        }
+    }
+
+    private func nextLegacyQuiltID() throws -> Int64 {
+        (try sortedQuiltRecords().map(\.legacyID).max() ?? 0) + 1
+    }
+
+    private func nextLegacyPhotoID() throws -> Int64 {
+        (try context.fetch(FetchDescriptor<QuiltPhotoRecord>()).map(\.legacyID).max() ?? 0) + 1
+    }
+
+    private func metadataValue(for key: String) throws -> String? {
+        let descriptor = FetchDescriptor<QuiltLogMetadata>(
+            predicate: #Predicate { $0.key == key }
+        )
+        return try context.fetch(descriptor).first?.value
+    }
+
+    private func setMetadataValue(_ value: String, for key: String) throws {
+        let descriptor = FetchDescriptor<QuiltLogMetadata>(
+            predicate: #Predicate { $0.key == key }
+        )
+        if let metadata = try context.fetch(descriptor).first {
+            metadata.value = value
+            metadata.updatedAt = Date()
+        } else {
+            context.insert(QuiltLogMetadata(key: key, value: value))
+        }
+        try context.save()
+    }
+
+    private func backupManifest(imagesDirectory: URL, thumbnailsDirectory: URL) throws -> QuiltLogBackup {
+        let records = try sortedQuiltRecords()
+        let quilts = try records.map { quilt -> QuiltBackup in
+            let photos = try sortedPhotos(for: quilt).map { photo -> QuiltPhotoBackup in
+                let imageFilename = try writeBackupImage(
+                    data: photo.imageData,
+                    uuid: photo.uuid,
+                    mimeType: photo.mimeType,
+                    directory: imagesDirectory
+                )
+                let thumbnailFilename = try writeBackupImage(
+                    data: photo.thumbnailData,
+                    uuid: photo.uuid,
+                    mimeType: "image/jpeg",
+                    directory: thumbnailsDirectory
+                )
+                return QuiltPhotoBackup(
+                    uuid: photo.uuid,
+                    legacyID: photo.legacyID,
+                    mimeType: photo.mimeType,
+                    caption: photo.caption,
+                    sortOrder: photo.sortOrder,
+                    isCover: photo.isCover,
+                    createdAt: photo.createdAt,
+                    imageFilename: imageFilename.map { "images/\($0)" },
+                    thumbnailFilename: thumbnailFilename.map { "thumbnails/\($0)" }
+                )
+            }
+            return QuiltBackup(
+                uuid: quilt.uuid,
+                legacyID: quilt.legacyID,
+                sequenceNumber: quilt.sequenceNumber,
+                quiltName: quilt.quiltName,
+                patternName: quilt.patternName,
+                fabricReminder: quilt.fabricReminder,
+                approxSize: quilt.approxSize,
+                quiltDate: quilt.quiltDate,
+                status: quilt.status,
+                giftedAlready: quilt.giftedAlready,
+                recipient: quilt.recipient,
+                notes: quilt.notes,
+                createdAt: quilt.createdAt,
+                updatedAt: quilt.updatedAt,
+                photos: photos
             )
         }
-        photosByQuiltID = Dictionary(grouping: photos, by: \.quiltID)
+
+        return QuiltLogBackup(
+            formatVersion: Self.backupFormatVersion,
+            exportedAt: Date(),
+            syncBehavior: "SwiftData local-first store with private CloudKit sync; sequence numbers are app-level ordering values.",
+            quilts: quilts
+        )
     }
 
-    private static func bookmarkedDatabaseURL() throws -> URL? {
-        if let bookmark = UserDefaults.standard.data(forKey: databaseBookmarkKey) {
-            var isStale = false
-            return try URL(
-                resolvingBookmarkData: bookmark,
-                options: [.withSecurityScope],
-                relativeTo: nil,
-                bookmarkDataIsStale: &isStale
-            )
+    private func writeBackupImage(data: Data?, uuid: String, mimeType: String, directory: URL) throws -> String? {
+        guard let data else { return nil }
+        let filename = "\(uuid).\(Self.fileExtension(for: mimeType))"
+        try data.write(to: directory.appendingPathComponent(filename), options: .atomic)
+        return filename
+    }
+
+    private func zip(directory: URL, to destination: URL) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+        process.currentDirectoryURL = directory
+        process.arguments = ["-qry", destination.path, "."]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw SQLiteError.stepFailed("Could not create ZIP backup.")
         }
-
-        if let path = UserDefaults.standard.string(forKey: legacyDatabasePathKey), !path.isEmpty {
-            return URL(fileURLWithPath: path)
-        }
-
-        return nil
     }
 
-    private static func clearSavedDatabaseBookmark() {
-        UserDefaults.standard.removeObject(forKey: databaseBookmarkKey)
-        UserDefaults.standard.removeObject(forKey: legacyDatabasePathKey)
+    private static func quiltDTO(from record: QuiltRecord) -> Quilt {
+        Quilt(
+            id: id(for: record),
+            sequenceNumber: record.sequenceNumber,
+            quiltName: record.quiltName,
+            patternName: record.patternName,
+            fabricReminder: record.fabricReminder,
+            approxSize: record.approxSize,
+            quiltDate: record.quiltDate,
+            status: record.status,
+            giftedAlready: record.giftedAlready,
+            recipient: record.recipient,
+            notes: record.notes
+        )
     }
 
-    private static func applicationDatabaseURL() throws -> URL {
+    private static func photoDTO(from record: QuiltPhotoRecord) -> QuiltPhoto? {
+        guard let quilt = record.quilt else { return nil }
+        return QuiltPhoto(
+            id: id(for: record),
+            quiltID: id(for: quilt),
+            thumbnailData: record.thumbnailData,
+            mimeType: record.mimeType,
+            caption: record.caption,
+            sortOrder: record.sortOrder,
+            isCover: record.isCover
+        )
+    }
+
+    private static func id(for record: QuiltRecord) -> Int64 {
+        QuiltRecordID.numericID(for: record.uuid)
+    }
+
+    private static func id(for record: QuiltPhotoRecord) -> Int64 {
+        QuiltRecordID.numericID(for: record.uuid)
+    }
+
+    private static func legacyDatabaseURL() throws -> URL {
         try applicationSupportDirectory()
-            .appendingPathComponent(applicationDatabaseFilename, isDirectory: false)
+            .appendingPathComponent(legacyDatabaseFilename, isDirectory: false)
     }
 
     private static func applicationSupportDirectory() throws -> URL {
@@ -653,31 +761,7 @@ final class QuiltStore: ObservableObject {
         return appDirectory
     }
 
-    private static func databaseCompatibility(at url: URL) -> DatabaseCompatibility {
-        let didStartAccess = url.startAccessingSecurityScopedResource()
-        defer {
-            if didStartAccess {
-                url.stopAccessingSecurityScopedResource()
-            }
-        }
-
-        do {
-            let database = try SQLiteDatabase(path: url)
-            try validateQuiltLogDatabase(database)
-            return .quiltLog
-        } catch let error as SQLiteError {
-            switch error {
-            case .prepareFailed, .stepFailed:
-                return .sqliteButNotQuiltLog
-            case .openFailed, .bindFailed:
-                return .notSQLite
-            }
-        } catch {
-            return .notSQLite
-        }
-    }
-
-    private static func validateQuiltLogDatabase(_ database: SQLiteDatabase) throws {
+    private static func validateLegacyDatabase(_ database: SQLiteDatabase) throws {
         let versions = try database.query(
             """
             SELECT value
@@ -692,109 +776,79 @@ final class QuiltStore: ObservableObject {
         guard versions.first == "1" else {
             throw SQLiteError.prepareFailed("The selected file is not a supported Quilt Log database.")
         }
+    }
 
-        _ = try database.query(
+    private static func legacyQuilts(from database: SQLiteDatabase) throws -> [LegacyQuiltRow] {
+        try database.query(
             """
             SELECT id, sequence_number, quilt_name, pattern_name, fabric_reminder, approx_size,
-                   quilt_date, status, gifted_already, recipient, notes
+                   COALESCE(quilt_date, ''), status, gifted_already, recipient, notes,
+                   created_at, updated_at
             FROM quilts
-            LIMIT 1
+            ORDER BY sequence_number
             """
-        ) { _ in
-            true
+        ) { statement in
+            LegacyQuiltRow(
+                id: sqlite3_column_int64(statement, 0),
+                sequenceNumber: Int(sqlite3_column_int(statement, 1)),
+                quiltName: SQLiteDatabase.columnString(statement, 2),
+                patternName: SQLiteDatabase.columnString(statement, 3),
+                fabricReminder: SQLiteDatabase.columnString(statement, 4),
+                approxSize: SQLiteDatabase.columnString(statement, 5),
+                quiltDate: SQLiteDatabase.columnString(statement, 6),
+                status: SQLiteDatabase.columnString(statement, 7),
+                giftedAlready: sqlite3_column_int(statement, 8) == 1,
+                recipient: SQLiteDatabase.columnString(statement, 9),
+                notes: SQLiteDatabase.columnString(statement, 10),
+                createdAt: parseSQLiteDate(SQLiteDatabase.columnString(statement, 11)),
+                updatedAt: parseSQLiteDate(SQLiteDatabase.columnString(statement, 12))
+            )
         }
+    }
 
-        _ = try database.query(
+    private static func legacyPhotos(from database: SQLiteDatabase) throws -> [LegacyPhotoRow] {
+        try database.query(
             """
-            SELECT id, quilt_id, thumbnail_data, mime_type, caption, sort_order, is_cover
+            SELECT id, quilt_id, image_data, thumbnail_data, mime_type, caption, sort_order, is_cover, created_at
             FROM photos
-            LIMIT 1
+            ORDER BY quilt_id, sort_order
             """
-        ) { _ in
-            true
+        ) { statement in
+            LegacyPhotoRow(
+                id: sqlite3_column_int64(statement, 0),
+                quiltID: sqlite3_column_int64(statement, 1),
+                imageData: SQLiteDatabase.columnData(statement, 2),
+                thumbnailData: SQLiteDatabase.columnData(statement, 3),
+                mimeType: SQLiteDatabase.columnString(statement, 4),
+                caption: SQLiteDatabase.columnString(statement, 5),
+                sortOrder: Int(sqlite3_column_int(statement, 6)),
+                isCover: sqlite3_column_int(statement, 7) == 1,
+                createdAt: parseSQLiteDate(SQLiteDatabase.columnString(statement, 8))
+            )
         }
     }
 
-    private static func replaceApplicationDatabase(with sourceURL: URL) throws {
-        let destinationURL = try applicationDatabaseURL()
-        if sourceURL.standardizedFileURL == destinationURL.standardizedFileURL {
-            return
+    private static func parseSQLiteDate(_ value: String) -> Date {
+        guard !value.isEmpty else { return Date() }
+        if let date = sqliteDateFormatter.date(from: value) {
+            return date
         }
-
-        let sourceAccess = sourceURL.startAccessingSecurityScopedResource()
-        defer {
-            if sourceAccess {
-                sourceURL.stopAccessingSecurityScopedResource()
-            }
+        if let date = iso8601Formatter.date(from: value) {
+            return date
         }
-
-        let sourceDatabase = try SQLiteDatabase(path: sourceURL)
-        try validateQuiltLogDatabase(sourceDatabase)
-
-        let temporaryURL = destinationURL
-            .deletingLastPathComponent()
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("sqlite")
-        try? FileManager.default.removeItem(at: temporaryURL)
-        try sourceDatabase.backup(to: temporaryURL)
-        try removeDatabaseFiles(at: destinationURL)
-        try FileManager.default.moveItem(at: temporaryURL, to: destinationURL)
+        return Date()
     }
 
-    private static func removeDatabaseFiles(at url: URL) throws {
-        let fileManager = FileManager.default
-        let urls = [
-            url,
-            URL(fileURLWithPath: url.path + "-journal"),
-            URL(fileURLWithPath: url.path + "-wal"),
-            URL(fileURLWithPath: url.path + "-shm")
-        ]
-        for url in urls where fileManager.fileExists(atPath: url.path) {
-            try fileManager.removeItem(at: url)
-        }
-    }
+    private static let sqliteDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }()
 
-    private static func createEmptyDatabase(at url: URL) throws {
-        let database = try SQLiteDatabase(path: url, createIfNeeded: true)
-        try database.execute(
-            """
-            PRAGMA foreign_keys = ON;
-            CREATE TABLE IF NOT EXISTS schema_metadata (
-              key TEXT PRIMARY KEY NOT NULL,
-              value TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS quilts (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              sequence_number INTEGER NOT NULL UNIQUE,
-              quilt_name TEXT NOT NULL,
-              pattern_name TEXT NOT NULL DEFAULT '',
-              fabric_reminder TEXT NOT NULL DEFAULT '',
-              approx_size TEXT NOT NULL DEFAULT '',
-              quilt_date TEXT,
-              status TEXT NOT NULL,
-              gifted_already INTEGER NOT NULL DEFAULT 0 CHECK (gifted_already IN (0, 1)),
-              recipient TEXT NOT NULL DEFAULT '',
-              notes TEXT NOT NULL DEFAULT '',
-              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE TABLE IF NOT EXISTS photos (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              quilt_id INTEGER NOT NULL REFERENCES quilts(id) ON DELETE CASCADE,
-              image_data BLOB NOT NULL,
-              thumbnail_data BLOB,
-              mime_type TEXT NOT NULL,
-              caption TEXT NOT NULL DEFAULT '',
-              sort_order INTEGER NOT NULL DEFAULT 0,
-              is_cover INTEGER NOT NULL DEFAULT 0 CHECK (is_cover IN (0, 1)),
-              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE INDEX IF NOT EXISTS idx_quilts_status_sequence ON quilts(status, sequence_number);
-            CREATE INDEX IF NOT EXISTS idx_photos_quilt_sort ON photos(quilt_id, sort_order);
-            INSERT OR REPLACE INTO schema_metadata(key, value) VALUES ('schema_version', '1');
-            """
-        )
-    }
+    private static let iso8601Formatter = ISO8601DateFormatter()
 
     private static func thumbnailJPEGData(for data: Data) -> Data? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
@@ -822,4 +876,42 @@ final class QuiltStore: ObservableObject {
         default: return "image/jpeg"
         }
     }
+
+    private static func fileExtension(for mimeType: String) -> String {
+        switch mimeType.lowercased() {
+        case "image/png": return "png"
+        case "image/heic": return "heic"
+        case "image/heif": return "heif"
+        case "image/tiff": return "tiff"
+        default: return "jpg"
+        }
+    }
+}
+
+private struct LegacyQuiltRow {
+    var id: Int64
+    var sequenceNumber: Int
+    var quiltName: String
+    var patternName: String
+    var fabricReminder: String
+    var approxSize: String
+    var quiltDate: String
+    var status: String
+    var giftedAlready: Bool
+    var recipient: String
+    var notes: String
+    var createdAt: Date
+    var updatedAt: Date
+}
+
+private struct LegacyPhotoRow {
+    var id: Int64
+    var quiltID: Int64
+    var imageData: Data?
+    var thumbnailData: Data?
+    var mimeType: String
+    var caption: String
+    var sortOrder: Int
+    var isCover: Bool
+    var createdAt: Date
 }

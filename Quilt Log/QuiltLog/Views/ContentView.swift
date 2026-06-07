@@ -76,6 +76,7 @@ struct ContentView: View {
                         }
                     }
                 }
+                syncStatusFooter
             }
             .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 420)
         } detail: {
@@ -229,6 +230,32 @@ struct ContentView: View {
         }
         .padding(8)
         .background(.thinMaterial)
+    }
+
+    private var syncStatusFooter: some View {
+        HStack(spacing: 8) {
+            Image(systemName: store.cloudSyncStatus.systemImage)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(store.cloudSyncStatus.phase == .failed ? .red : .secondary)
+                .frame(width: 16)
+            Text(store.cloudSyncStatus.message)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.thinMaterial)
+        .help(syncStatusHelp)
+    }
+
+    private var syncStatusHelp: String {
+        guard let date = store.cloudSyncStatus.lastUpdated else {
+            return store.cloudSyncStatus.message
+        }
+        return "\(store.cloudSyncStatus.message) at \(date.formatted(date: .abbreviated, time: .standard))"
     }
 }
 

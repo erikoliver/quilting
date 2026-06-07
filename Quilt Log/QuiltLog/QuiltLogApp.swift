@@ -2,19 +2,54 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import AppKit
+import Security
+import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
 @main
 struct QuiltLogApp: App {
-    @StateObject private var store = QuiltStore()
+    private let modelContainer: ModelContainer
+    @StateObject private var store: QuiltStore
     @StateObject private var preferences = UserPreferences()
 
     init() {
-        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
-           let icon = NSImage(contentsOf: iconURL) {
-            NSApplication.shared.applicationIconImage = icon
+        let schema = Schema([
+            QuiltRecord.self,
+            QuiltPhotoRecord.self,
+            QuiltLogMetadata.self
+        ])
+        let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        let configuration: ModelConfiguration
+        if isRunningTests {
+            configuration = ModelConfiguration("QuiltLogTests", schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        } else if Self.hasCloudKitEntitlement {
+            configuration = ModelConfiguration("QuiltLogCloud", schema: schema, cloudKitDatabase: .private("iCloud.com.erikoliver.quiltlog"))
+        } else {
+            configuration = ModelConfiguration("QuiltLogUnsigned", schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         }
+        let container: ModelContainer
+        do {
+            container = try ModelContainer(for: schema, configurations: [configuration])
+        } catch {
+            fatalError("Could not create SwiftData model container: \(error.localizedDescription)")
+        }
+        modelContainer = container
+        _store = StateObject(wrappedValue: QuiltStore(modelContainer: container))
+
+    }
+
+    private static var hasCloudKitEntitlement: Bool {
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(
+                task,
+                "com.apple.developer.icloud-services" as CFString,
+                nil
+              ) else {
+            return false
+        }
+        let services = value as? [String] ?? []
+        return services.contains("CloudKit") || services.contains("CloudKit-Anonymous")
     }
 
     var body: some Scene {
@@ -23,8 +58,17 @@ struct QuiltLogApp: App {
                 .environmentObject(store)
                 .environmentObject(preferences)
                 .frame(minWidth: 1080, minHeight: 680)
+                .modelContainer(modelContainer)
                 .task {
                     await store.load()
+                }
+                .sheet(isPresented: Binding(
+                    get: { store.migrationProgress != nil },
+                    set: { _ in }
+                )) {
+                    if let progress = store.migrationProgress {
+                        MigrationProgressView(progress: progress)
+                    }
                 }
         }
         Settings {
@@ -39,48 +83,50 @@ struct QuiltLogApp: App {
                 .keyboardShortcut("n", modifiers: .command)
             }
             CommandGroup(after: .newItem) {
-                Button("Import SQLite Backup...") {
+                Button("Import Legacy SQLite Library...") {
                     let panel = NSOpenPanel()
                     panel.allowedContentTypes = [.database, .data]
                     panel.allowsMultipleSelection = false
                     panel.canChooseDirectories = false
                     panel.canChooseFiles = true
-                    panel.title = "Import Quilt Log SQLite Backup"
-                    panel.message = "Choose a Quilt Log SQLite database to import. This will replace the current library."
+                    panel.title = "Import Legacy Quilt Log SQLite Library"
+                    panel.message = "Choose a legacy Quilt Log SQLite database to convert into the SwiftData library."
                     panel.prompt = "Import"
 
                     guard panel.runModal() == .OK, let url = panel.url else { return }
                     let alert = NSAlert()
                     alert.alertStyle = .warning
-                    alert.messageText = "Replace current Quilt Log library?"
-                    alert.informativeText = "Importing \"\(url.lastPathComponent)\" will replace the app's current library. Export a backup first if you want to keep it."
+                    alert.messageText = "Import legacy SQLite library?"
+                    alert.informativeText = "Importing \"\(url.lastPathComponent)\" will add its records to the SwiftData library. Export a ZIP backup first if you want a checkpoint."
                     alert.addButton(withTitle: "Import")
                     alert.addButton(withTitle: "Cancel")
 
                     if alert.runModal() == .alertFirstButtonReturn {
-                        do {
-                            try store.importDatabase(from: url)
-                        } catch {
-                            store.errorMessage = error.localizedDescription
+                        Task {
+                            do {
+                                try await store.importDatabase(from: url)
+                            } catch {
+                                store.errorMessage = error.localizedDescription
+                            }
                         }
                     }
                 }
 
-                Button("Export SQLite Backup...") {
+                Button("Export JSON Backup ZIP...") {
                     let panel = NSSavePanel()
-                    panel.allowedContentTypes = [.database]
+                    panel.allowedContentTypes = [.zip]
                     panel.canCreateDirectories = true
-                    panel.nameFieldStringValue = "Quilt Log.sqlite"
+                    panel.nameFieldStringValue = "Quilt Log Backup.zip"
 
                     guard panel.runModal() == .OK, let url = panel.url else { return }
                     do {
-                        try store.exportDatabase(to: url)
+                        try store.exportJSONBackup(to: url)
                     } catch {
                         store.errorMessage = error.localizedDescription
                     }
                 }
 
-                Button("Show Data Folder in Finder") {
+                Button("Show Legacy Data Folder in Finder") {
                     guard let databaseURL = store.databaseURL else { return }
                     NSWorkspace.shared.activateFileViewerSelecting([databaseURL])
                 }
