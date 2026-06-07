@@ -52,6 +52,14 @@ struct QuiltLogApp: App {
         return services.contains("CloudKit") || services.contains("CloudKit-Anonymous")
     }
 
+    private static let backupFilenameDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd"
+        return formatter
+    }()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -116,7 +124,7 @@ struct QuiltLogApp: App {
                     let panel = NSSavePanel()
                     panel.allowedContentTypes = [.zip]
                     panel.canCreateDirectories = true
-                    panel.nameFieldStringValue = "Quilt Log Backup.zip"
+                    panel.nameFieldStringValue = "\(Self.backupFilenameDateFormatter.string(from: Date())) Quilt Log Backup.zip"
 
                     guard panel.runModal() == .OK, let url = panel.url else { return }
                     do {

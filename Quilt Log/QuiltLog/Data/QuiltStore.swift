@@ -45,6 +45,21 @@ struct MigrationProgress: Equatable {
     }
 }
 
+private enum BackupExportError: LocalizedError {
+    case zipFailed(status: Int32, output: String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .zipFailed(status, output):
+            let details = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            if details.isEmpty {
+                return "Could not create ZIP backup. The zip process exited with status \(status)."
+            }
+            return "Could not create ZIP backup. The zip process exited with status \(status): \(details)"
+        }
+    }
+}
+
 @MainActor
 final class QuiltStore: ObservableObject {
     @Published var quilts: [Quilt] = []
@@ -310,13 +325,14 @@ final class QuiltStore: ObservableObject {
             }
         }
 
-        let temporaryDirectory = FileManager.default.temporaryDirectory
+        let workingDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("QuiltLogBackup-\(UUID().uuidString)", isDirectory: true)
-        let imagesDirectory = temporaryDirectory.appendingPathComponent("images", isDirectory: true)
-        let thumbnailsDirectory = temporaryDirectory.appendingPathComponent("thumbnails", isDirectory: true)
+        let payloadDirectory = workingDirectory.appendingPathComponent("payload", isDirectory: true)
+        let imagesDirectory = payloadDirectory.appendingPathComponent("images", isDirectory: true)
+        let thumbnailsDirectory = payloadDirectory.appendingPathComponent("thumbnails", isDirectory: true)
         try FileManager.default.createDirectory(at: imagesDirectory, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: thumbnailsDirectory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+        defer { try? FileManager.default.removeItem(at: workingDirectory) }
 
         let backup = try backupManifest(
             imagesDirectory: imagesDirectory,
@@ -325,12 +341,14 @@ final class QuiltStore: ObservableObject {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(backup).write(to: temporaryDirectory.appendingPathComponent("manifest.json"))
+        try encoder.encode(backup).write(to: payloadDirectory.appendingPathComponent("manifest.json"))
 
+        let stagedZipURL = workingDirectory.appendingPathComponent("Quilt Log Backup.zip")
+        try zip(directory: payloadDirectory, to: stagedZipURL)
         if FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.removeItem(at: url)
         }
-        try zip(directory: temporaryDirectory, to: url)
+        try FileManager.default.copyItem(at: stagedZipURL, to: url)
     }
 
     func importDatabase(from url: URL) async throws {
@@ -700,10 +718,14 @@ final class QuiltStore: ObservableObject {
         process.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
         process.currentDirectoryURL = directory
         process.arguments = ["-qry", destination.path, "."]
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = outputPipe
         try process.run()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
-            throw SQLiteError.stepFailed("Could not create ZIP backup.")
+            let output = String(data: outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            throw BackupExportError.zipFailed(status: process.terminationStatus, output: output)
         }
     }
 
