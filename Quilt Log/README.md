@@ -1,33 +1,29 @@
 # Quilt Log
 
-A personal macOS SwiftUI app for tracking quilts in a single SQLite database file.
+Quilt Log is a macOS app for tracking quilts in a portable SQLite database file.
 
-## Open The Project
+## Using The App
+
+Download the compiled app from the project releases, move it to your Applications folder, and open it like any other Mac app.
+
+On first launch, Quilt Log asks you to create a new database or open an existing one. The database is a normal `.sqlite` file that stores quilt records and imported photos, so you can keep it anywhere you normally store documents.
+
+From the app you can:
+
+- Browse quilts grouped by status.
+- Search by quilt name, pattern, fabric, size, date, recipient, notes, or sequence number.
+- Add, edit, delete, and renumber quilt records.
+- Import and manage quilt photos.
+- Show the current database in Finder.
+- Export PDF views of the complete log, available-to-gift quilts, or a visual catalog.
+- Set the name used in PDF export titles from Quilt Log > Settings.
+
+## Building From Source
 
 Open `QuiltLog.xcodeproj` in Xcode and run the `QuiltLog` scheme.
 
-During development, the app can seed its working database from `Database/Quilt Log.sqlite` if that file exists.
+The app does not require import scripts or generated seed data. Use the File menu to create a new database or open an existing Quilt Log database.
 
-- Development seed: `Database/Quilt Log.sqlite`
-- Working copy created on first launch: `~/Documents/Quilt Log.sqlite`
+## License
 
-The working copy is the single editable database file. Quilt metadata and imported photos are stored in SQLite.
-
-## First Pass Features
-
-- Browse quilts grouped by status.
-- Search by quilt name, pattern, fabric, or recipient.
-- Edit the core fields from the spreadsheet.
-- Add new quilts.
-- Import photos into the SQLite `photos` table as BLOBs.
-- Reveal the working database in Finder.
-- Export a basic landscape PDF table.
-
-## One-Time Import Scripts
-
-The import scripts are developer utilities, not app features:
-
-- `Scripts/fix_sequence_numbers.mjs` normalized `Seq #` values to `1...120`.
-- `Scripts/import_quilt_log.mjs` rebuilds `Database/Quilt Log.sqlite`.
-
-Re-run the import only if you intentionally want to regenerate the seed database from the Excel file.
+Apache-2.0

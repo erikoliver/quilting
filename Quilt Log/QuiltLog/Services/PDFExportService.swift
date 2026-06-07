@@ -11,14 +11,16 @@ enum PDFExportService {
 
     static func export(
         preset: PDFExportPreset,
+        ownerName: String,
         quilts: [Quilt],
         photosByQuiltID: [Int64: [QuiltPhoto]],
         to url: URL
     ) throws {
+        let ownerName = ownerName.trimmingCharacters(in: .whitespacesAndNewlines)
         switch preset {
         case .completeLog:
             try exportTable(
-                title: "Erik Oliver Quilt Log",
+                title: logTitle(ownerName: ownerName),
                 subtitle: "Complete Log",
                 quilts: quilts,
                 photosByQuiltID: photosByQuiltID,
@@ -27,7 +29,7 @@ enum PDFExportService {
             )
         case .availableToGift:
             try exportTable(
-                title: "Erik Oliver Quilt Log",
+                title: logTitle(ownerName: ownerName),
                 subtitle: "Available to Gift",
                 quilts: quilts.filter { isAvailable($0) },
                 photosByQuiltID: photosByQuiltID,
@@ -36,6 +38,7 @@ enum PDFExportService {
             )
         case .visualCatalog:
             try exportVisualCatalog(
+                ownerName: ownerName,
                 quilts: quilts,
                 photosByQuiltID: photosByQuiltID,
                 to: url
@@ -118,6 +121,7 @@ enum PDFExportService {
     }
 
     private static func exportVisualCatalog(
+        ownerName: String,
         quilts: [Quilt],
         photosByQuiltID: [Int64: [QuiltPhoto]],
         to url: URL
@@ -137,7 +141,7 @@ enum PDFExportService {
 
         for chunkStart in stride(from: 0, to: quilts.count, by: perPage) {
             beginPage(context, page: page)
-            draw("Visual Catalog of Quilts by Erik Oliver as of \(asOfDateString())", in: CGRect(x: left, y: 570, width: 500, height: 18), font: titleFont)
+            draw("\(visualCatalogTitle(ownerName: ownerName)) as of \(asOfDateString())", in: CGRect(x: left, y: 570, width: 500, height: 18), font: titleFont)
 
             for offset in 0..<perPage {
                 let index = chunkStart + offset
@@ -212,6 +216,14 @@ enum PDFExportService {
 
     private static func isAvailable(_ quilt: Quilt) -> Bool {
         !quilt.giftedAlready
+    }
+
+    private static func logTitle(ownerName: String) -> String {
+        ownerName.isEmpty ? "Quilt Log" : "\(ownerName) Quilt Log"
+    }
+
+    private static func visualCatalogTitle(ownerName: String) -> String {
+        ownerName.isEmpty ? "Visual Catalog of Quilts" : "Visual Catalog of Quilts by \(ownerName)"
     }
 
     private static func availabilityLabel(for quilt: Quilt) -> String {

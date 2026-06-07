@@ -21,8 +21,11 @@ enum SQLiteError: Error, LocalizedError {
 final class SQLiteDatabase {
     private var db: OpaquePointer?
 
-    init(path: URL) throws {
-        if sqlite3_open(path.path, &db) != SQLITE_OK {
+    init(path: URL, createIfNeeded: Bool = false) throws {
+        let flags = createIfNeeded
+            ? SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+            : SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX
+        if sqlite3_open_v2(path.path, &db, flags, nil) != SQLITE_OK {
             throw SQLiteError.openFailed(Self.errorMessage(db))
         }
         try execute("PRAGMA foreign_keys = ON")

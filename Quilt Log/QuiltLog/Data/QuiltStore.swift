@@ -69,8 +69,12 @@ final class QuiltStore: ObservableObject {
     func load() async {
         do {
             if let url = try Self.bookmarkedDatabaseURL() {
-                try openDatabase(at: url)
-                return
+                do {
+                    try openDatabase(at: url)
+                    return
+                } catch {
+                    Self.clearSavedDatabaseBookmark()
+                }
             }
             try openInitialDatabase()
         } catch is CancellationError {
@@ -572,11 +576,11 @@ final class QuiltStore: ObservableObject {
         }
     }
 
-    func exportFullLog(to url: URL) {
-        exportPDF(.completeLog, to: url)
+    func exportFullLog(to url: URL, ownerName: String) {
+        exportPDF(.completeLog, to: url, ownerName: ownerName)
     }
 
-    func exportPDF(_ preset: PDFExportPreset, to url: URL) {
+    func exportPDF(_ preset: PDFExportPreset, to url: URL, ownerName: String) {
         do {
             let didStartAccess = url.startAccessingSecurityScopedResource()
             defer {
@@ -586,6 +590,7 @@ final class QuiltStore: ObservableObject {
             }
             try PDFExportService.export(
                 preset: preset,
+                ownerName: ownerName,
                 quilts: filteredQuilts,
                 photosByQuiltID: photosByQuiltID,
                 to: url
@@ -640,6 +645,11 @@ final class QuiltStore: ObservableObject {
         }
 
         return url
+    }
+
+    private static func clearSavedDatabaseBookmark() {
+        UserDefaults.standard.removeObject(forKey: databaseBookmarkKey)
+        UserDefaults.standard.removeObject(forKey: legacyDatabasePathKey)
     }
 
     private static func promptForInitialDatabaseSelection() throws -> DatabaseSelection {
@@ -833,7 +843,7 @@ final class QuiltStore: ObservableObject {
     }
 
     private static func createEmptyDatabase(at url: URL) throws {
-        let database = try SQLiteDatabase(path: url)
+        let database = try SQLiteDatabase(path: url, createIfNeeded: true)
         try database.execute(
             """
             PRAGMA foreign_keys = ON;

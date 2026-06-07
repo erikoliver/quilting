@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct PDFExportSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: QuiltStore
+    @EnvironmentObject private var preferences: UserPreferences
     @State private var selectedPreset: PDFExportPreset = .completeLog
 
     var body: some View {
@@ -63,7 +64,7 @@ struct PDFExportSheet: View {
         panel.nameFieldStringValue = selectedPreset.defaultFilename
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        store.exportPDF(selectedPreset, to: url)
+        store.exportPDF(selectedPreset, to: url, ownerName: preferences.exportOwnerName)
         dismiss()
     }
 }

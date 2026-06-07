@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 @main
 struct QuiltLogApp: App {
     @StateObject private var store = QuiltStore()
+    @StateObject private var preferences = UserPreferences()
 
     init() {
         if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
@@ -20,10 +21,15 @@ struct QuiltLogApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(store)
+                .environmentObject(preferences)
                 .frame(minWidth: 1080, minHeight: 680)
                 .task {
                     await store.load()
                 }
+        }
+        Settings {
+            PreferencesView()
+                .environmentObject(preferences)
         }
         .commands {
             CommandGroup(replacing: .newItem) {

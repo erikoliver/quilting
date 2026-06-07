@@ -20,6 +20,8 @@
 		01000000000000000000000B /* SQLitePlaceholderDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010B /* SQLitePlaceholderDocument.swift */; };
 		01000000000000000000000C /* PDFExportPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010C /* PDFExportPreset.swift */; };
 		01000000000000000000000D /* PDFExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010D /* PDFExportSheet.swift */; };
+		01000000000000000000000E /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010F /* UserPreferences.swift */; };
+		01000000000000000000000F /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000110 /* PreferencesView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +40,8 @@
 		01000000000000000000010C /* PDFExportPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportPreset.swift; sourceTree = "<group>"; };
 		01000000000000000000010D /* PDFExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportSheet.swift; sourceTree = "<group>"; };
 		01000000000000000000010E /* QuiltLog.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuiltLog.entitlements; sourceTree = "<group>"; };
+		01000000000000000000010F /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
+		010000000000000000000110 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -80,6 +84,7 @@
 			children = (
 				010000000000000000000102 /* Quilt.swift */,
 				01000000000000000000010C /* PDFExportPreset.swift */,
+				01000000000000000000010F /* UserPreferences.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -109,6 +114,7 @@
 				010000000000000000000105 /* ContentView.swift */,
 				010000000000000000000106 /* QuiltDetailView.swift */,
 				01000000000000000000010D /* PDFExportSheet.swift */,
+				010000000000000000000110 /* PreferencesView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -209,6 +215,8 @@
 				01000000000000000000000B /* SQLitePlaceholderDocument.swift in Sources */,
 				01000000000000000000000C /* PDFExportPreset.swift in Sources */,
 				01000000000000000000000D /* PDFExportSheet.swift in Sources */,
+				01000000000000000000000E /* UserPreferences.swift in Sources */,
+				01000000000000000000000F /* PreferencesView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
