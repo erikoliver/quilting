@@ -1,9 +1,11 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
-import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#endif
 
 struct QuiltDetailView: View {
     @EnvironmentObject private var store: QuiltStore
@@ -87,9 +89,11 @@ struct QuiltDetailView: View {
                 }
             }
         }
+#if os(macOS)
         .onPasteCommand(of: [.image, .fileURL]) { providers in
             addPhotos(from: providers)
         }
+#endif
     }
 
     private var header: some View {
@@ -150,7 +154,9 @@ struct QuiltDetailView: View {
                 }
                 labeled("Gifted") {
                     Toggle("Gifted Already", isOn: $draft.giftedAlready)
+#if os(macOS)
                         .toggleStyle(.checkbox)
+#endif
                 }
                 Color.clear.frame(width: 1, height: 1)
             }
@@ -164,12 +170,14 @@ struct QuiltDetailView: View {
                 Text("Photos")
                     .font(.headline)
                 Spacer()
+#if os(macOS)
                 Button {
                     pastePhotoFromPasteboard()
                 } label: {
                     Label("Paste Photo", systemImage: "doc.on.clipboard")
                 }
                 .help("Paste a copied image into this quilt")
+#endif
 
                 Button {
                     showingPhotoImporter = true
@@ -221,7 +229,7 @@ struct QuiltDetailView: View {
                 .frame(minHeight: 120)
                 .overlay {
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(.separator)
+                        .stroke(Color.quiltSeparator)
                 }
         }
     }
@@ -285,6 +293,7 @@ struct QuiltDetailView: View {
         isApplyingSavedDraft = false
     }
 
+#if os(macOS)
     private func pastePhotoFromPasteboard() {
         let pasteboard = NSPasteboard.general
         if let image = NSImage(pasteboard: pasteboard),
@@ -309,6 +318,7 @@ struct QuiltDetailView: View {
             }
         }
     }
+#endif
 
     private func addPhotos(from providers: [NSItemProvider]) {
         let quilt = draft
@@ -375,11 +385,13 @@ struct QuiltDetailView: View {
         return "image/jpeg"
     }
 
+#if os(macOS)
     private static func jpegData(for image: NSImage) -> Data? {
         guard let tiff = image.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
         return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.9])
     }
+#endif
 }
 
 private struct PhotoTile: View {
@@ -393,8 +405,8 @@ private struct PhotoTile: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(.quaternary)
-                if let data = photo.thumbnailData, let image = NSImage(data: data) {
-                    Image(nsImage: image)
+                if let data = photo.thumbnailData, let image = PlatformImage(data: data) {
+                    Image(platformImage: image)
                         .resizable()
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: 6))

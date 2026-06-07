@@ -1,11 +1,13 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
-import AppKit
-import Security
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+import Security
+#endif
 
 @main
 struct QuiltLogApp: App {
@@ -40,6 +42,7 @@ struct QuiltLogApp: App {
     }
 
     private static var hasCloudKitEntitlement: Bool {
+#if os(macOS)
         guard let task = SecTaskCreateFromSelf(nil),
               let value = SecTaskCopyValueForEntitlement(
                 task,
@@ -50,6 +53,9 @@ struct QuiltLogApp: App {
         }
         let services = value as? [String] ?? []
         return services.contains("CloudKit") || services.contains("CloudKit-Anonymous")
+#else
+        return true
+#endif
     }
 
     private static let backupFilenameDateFormatter: DateFormatter = {
@@ -61,11 +67,23 @@ struct QuiltLogApp: App {
     }()
 
     var body: some Scene {
+        appWindow
+#if os(macOS)
+        Settings {
+            PreferencesView()
+                .environmentObject(preferences)
+        }
+#endif
+    }
+
+    private var appWindow: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(store)
                 .environmentObject(preferences)
+#if os(macOS)
                 .frame(minWidth: 1080, minHeight: 680)
+#endif
                 .modelContainer(modelContainer)
                 .task {
                     await store.load()
@@ -79,104 +97,111 @@ struct QuiltLogApp: App {
                     }
                 }
         }
-        Settings {
-            PreferencesView()
-                .environmentObject(preferences)
-        }
+#if os(macOS)
         .commands {
-            CommandGroup(replacing: .newItem) {
-                Button("New Quilt") {
-                    Task { _ = await store.createQuilt() }
-                }
-                .keyboardShortcut("n", modifiers: .command)
+            appCommands
+        }
+#endif
+    }
+}
+
+#if os(macOS)
+private extension QuiltLogApp {
+    @CommandsBuilder
+    var appCommands: some Commands {
+        CommandGroup(replacing: .newItem) {
+            Button("New Quilt") {
+                Task { _ = await store.createQuilt() }
             }
-            CommandGroup(after: .newItem) {
-                Button("Import Legacy SQLite Library...") {
-                    let panel = NSOpenPanel()
-                    panel.allowedContentTypes = [.database, .data]
-                    panel.allowsMultipleSelection = false
-                    panel.canChooseDirectories = false
-                    panel.canChooseFiles = true
-                    panel.title = "Import Legacy Quilt Log SQLite Library"
-                    panel.message = "Choose a legacy Quilt Log SQLite database to convert into the SwiftData library."
-                    panel.prompt = "Import"
+            .keyboardShortcut("n", modifiers: .command)
+        }
+        CommandGroup(after: .newItem) {
+            Button("Import Legacy SQLite Library...") {
+                let panel = NSOpenPanel()
+                panel.allowedContentTypes = [.database, .data]
+                panel.allowsMultipleSelection = false
+                panel.canChooseDirectories = false
+                panel.canChooseFiles = true
+                panel.title = "Import Legacy Quilt Log SQLite Library"
+                panel.message = "Choose a legacy Quilt Log SQLite database to convert into the SwiftData library."
+                panel.prompt = "Import"
 
-                    guard panel.runModal() == .OK, let url = panel.url else { return }
-                    let alert = NSAlert()
-                    alert.alertStyle = .warning
-                    alert.messageText = "Import legacy SQLite library?"
-                    alert.informativeText = "Importing \"\(url.lastPathComponent)\" will add its records to the SwiftData library. Export a ZIP backup first if you want a checkpoint."
-                    alert.addButton(withTitle: "Import")
-                    alert.addButton(withTitle: "Cancel")
+                guard panel.runModal() == .OK, let url = panel.url else { return }
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "Import legacy SQLite library?"
+                alert.informativeText = "Importing \"\(url.lastPathComponent)\" will add its records to the SwiftData library. Export a ZIP backup first if you want a checkpoint."
+                alert.addButton(withTitle: "Import")
+                alert.addButton(withTitle: "Cancel")
 
-                    if alert.runModal() == .alertFirstButtonReturn {
-                        Task {
-                            do {
-                                try await store.importDatabase(from: url)
-                            } catch {
-                                store.errorMessage = error.localizedDescription
-                            }
-                        }
-                    }
-                }
-
-                Button("Export JSON Backup ZIP...") {
-                    let panel = NSSavePanel()
-                    panel.allowedContentTypes = [.zip]
-                    panel.canCreateDirectories = true
-                    panel.nameFieldStringValue = "\(Self.backupFilenameDateFormatter.string(from: Date())) Quilt Log Backup.zip"
-
-                    guard panel.runModal() == .OK, let url = panel.url else { return }
-                    do {
-                        try store.exportJSONBackup(to: url)
-                    } catch {
-                        store.errorMessage = error.localizedDescription
-                    }
-                }
-
-                Button("Show Legacy Data Folder in Finder") {
-                    guard let databaseURL = store.databaseURL else { return }
-                    NSWorkspace.shared.activateFileViewerSelecting([databaseURL])
-                }
-                .disabled(store.databaseURL == nil)
-
-                Divider()
-
-                Button("New Empty Library...") {
-                    let alert = NSAlert()
-                    alert.alertStyle = .warning
-                    alert.messageText = "Create a new empty Quilt Log library?"
-                    alert.informativeText = "This will replace the app's current library with an empty one. Export a backup first if you want to keep it."
-                    alert.addButton(withTitle: "Create Empty Library")
-                    alert.addButton(withTitle: "Cancel")
-
-                    if alert.runModal() == .alertFirstButtonReturn {
+                if alert.runModal() == .alertFirstButtonReturn {
+                    Task {
                         do {
-                            try store.resetDatabase()
+                            try await store.importDatabase(from: url)
                         } catch {
                             store.errorMessage = error.localizedDescription
                         }
                     }
                 }
+            }
 
-                Button("Repair Numbering...") {
-                    let alert = NSAlert()
-                    alert.messageText = "Repair sequence numbering?"
-                    alert.informativeText = "This will renumber quilts sequentially from 1 in the current sequence order. Quilt records keep their database IDs."
-                    alert.addButton(withTitle: "Repair Numbering")
-                    alert.addButton(withTitle: "Cancel")
+            Button("Export JSON Backup ZIP...") {
+                let panel = NSSavePanel()
+                panel.allowedContentTypes = [.zip]
+                panel.canCreateDirectories = true
+                panel.nameFieldStringValue = "\(Self.backupFilenameDateFormatter.string(from: Date())) Quilt Log Backup.zip"
 
-                    if alert.runModal() == .alertFirstButtonReturn {
-                        Task { await store.repairSequenceGaps() }
+                guard panel.runModal() == .OK, let url = panel.url else { return }
+                do {
+                    try store.exportJSONBackup(to: url)
+                } catch {
+                    store.errorMessage = error.localizedDescription
+                }
+            }
+
+            Button("Show Legacy Data Folder in Finder") {
+                guard let databaseURL = store.databaseURL else { return }
+                NSWorkspace.shared.activateFileViewerSelecting([databaseURL])
+            }
+            .disabled(store.databaseURL == nil)
+
+            Divider()
+
+            Button("New Empty Library...") {
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "Create a new empty Quilt Log library?"
+                alert.informativeText = "This will replace the app's current library with an empty one. Export a backup first if you want to keep it."
+                alert.addButton(withTitle: "Create Empty Library")
+                alert.addButton(withTitle: "Cancel")
+
+                if alert.runModal() == .alertFirstButtonReturn {
+                    do {
+                        try store.resetDatabase()
+                    } catch {
+                        store.errorMessage = error.localizedDescription
                     }
                 }
             }
-            CommandGroup(after: .textEditing) {
-                Button("Find") {
-                    NotificationCenter.default.post(name: .focusQuiltSearch, object: nil)
+
+            Button("Repair Numbering...") {
+                let alert = NSAlert()
+                alert.messageText = "Repair sequence numbering?"
+                alert.informativeText = "This will renumber quilts sequentially from 1 in the current sequence order. Quilt records keep their database IDs."
+                alert.addButton(withTitle: "Repair Numbering")
+                alert.addButton(withTitle: "Cancel")
+
+                if alert.runModal() == .alertFirstButtonReturn {
+                    Task { await store.repairSequenceGaps() }
                 }
-                .keyboardShortcut("f", modifiers: .command)
             }
+        }
+        CommandGroup(after: .textEditing) {
+            Button("Find") {
+                NotificationCenter.default.post(name: .focusQuiltSearch, object: nil)
+            }
+            .keyboardShortcut("f", modifiers: .command)
         }
     }
 }
+#endif

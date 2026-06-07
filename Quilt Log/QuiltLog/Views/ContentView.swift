@@ -1,8 +1,10 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
-import AppKit
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 extension Notification.Name {
     static let focusQuiltSearch = Notification.Name("focusQuiltSearch")
@@ -63,17 +65,23 @@ struct ContentView: View {
         NavigationSplitView {
             VStack(spacing: 0) {
                 searchField
-                List(selection: $selectedQuiltID) {
-                    ForEach(visibleQuiltGroups) { group in
-                        Section(group.title) {
-                            ForEach(group.quilts) { quilt in
-                                QuiltRow(
-                                    quilt: quilt,
-                                    hideRecipient: preferences.hideRecipientsOnScreen
-                                )
-                                    .tag(quilt.id)
+                ZStack {
+                    List(selection: $selectedQuiltID) {
+                        ForEach(visibleQuiltGroups) { group in
+                            Section(group.title) {
+                                ForEach(group.quilts) { quilt in
+                                    QuiltRow(
+                                        quilt: quilt,
+                                        hideRecipient: preferences.hideRecipientsOnScreen
+                                    )
+                                        .tag(quilt.id)
+                                }
                             }
                         }
+                    }
+                    if visibleQuilts.isEmpty, isInitialCloudSyncActive {
+                        InitialCloudSyncView(message: store.cloudSyncStatus.message)
+                            .padding(20)
                     }
                 }
                 syncStatusFooter
@@ -92,7 +100,11 @@ struct ContentView: View {
             } else if let quilt = selectedQuilt {
                 QuiltDetailView(quilt: quilt)
             } else {
-                ContentUnavailableView("No Quilt Selected", systemImage: "square.grid.2x2")
+                if isInitialCloudSyncActive {
+                    InitialCloudSyncView(message: store.cloudSyncStatus.message)
+                } else {
+                    ContentUnavailableView("No Quilt Selected", systemImage: "square.grid.2x2")
+                }
             }
         }
         .toolbar {
@@ -146,12 +158,14 @@ struct ContentView: View {
                 }
                 .help("Create a new quilt record")
 
+#if os(macOS)
                 Button {
                     showingPDFExport = true
                 } label: {
                     Label("Export PDF", systemImage: "square.and.arrow.up")
                 }
                 .help("Choose a PDF export format")
+#endif
 
                 Button {
                     showingDeleteConfirmation = true
@@ -162,10 +176,12 @@ struct ContentView: View {
                 .disabled(selectedQuilt == nil)
             }
         }
+#if os(macOS)
         .sheet(isPresented: $showingPDFExport) {
             PDFExportSheet()
                 .environmentObject(store)
         }
+#endif
         .alert("Quilt Log", isPresented: Binding(
             get: { store.errorMessage != nil },
             set: { if !$0 { store.errorMessage = nil } }
@@ -257,9 +273,58 @@ struct ContentView: View {
         }
         return "\(store.cloudSyncStatus.message) at \(date.formatted(date: .abbreviated, time: .standard))"
     }
+
+    private var isInitialCloudSyncActive: Bool {
+        guard store.quilts.isEmpty else { return false }
+        switch store.cloudSyncStatus.phase {
+        case .settingUp, .importing:
+            return true
+        case .waiting, .exporting, .idle, .failed:
+            return false
+        }
+    }
 }
 
-private struct SearchTextField: NSViewRepresentable {
+private struct InitialCloudSyncView: View {
+    let message: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.large)
+            Text("Syncing your quilt library")
+                .font(.headline)
+            Text(message)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct SearchTextField: View {
+    let placeholder: String
+    @Binding var text: String
+    @Binding var focusRequest: Int
+
+    var body: some View {
+#if os(macOS)
+        MacSearchTextField(
+            placeholder: placeholder,
+            text: $text,
+            focusRequest: $focusRequest
+        )
+#else
+        TextField(placeholder, text: $text)
+            .textFieldStyle(.plain)
+#endif
+    }
+}
+
+#if os(macOS)
+private struct MacSearchTextField: NSViewRepresentable {
     let placeholder: String
     @Binding var text: String
     @Binding var focusRequest: Int
@@ -308,6 +373,7 @@ private struct SearchTextField: NSViewRepresentable {
         }
     }
 }
+#endif
 
 private struct QuiltRow: View {
     let quilt: Quilt
@@ -621,7 +687,7 @@ private struct QuiltCoverTile: View {
             .background(tileBackground)
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor : Color(nsColor: .separatorColor), lineWidth: isSelected ? 2.5 : 1)
+                    .stroke(isSelected ? Color.accentColor : .quiltSeparator, lineWidth: isSelected ? 2.5 : 1)
             }
         }
         .buttonStyle(.plain)
@@ -634,10 +700,10 @@ private struct QuiltCoverTile: View {
     private var coverImage: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.2))
+                .fill(Color.quiltQuaternaryLabel.opacity(0.2))
 
-            if let data = coverPhoto?.thumbnailData, let image = NSImage(data: data) {
-                Image(nsImage: image)
+            if let data = coverPhoto?.thumbnailData, let image = PlatformImage(data: data) {
+                Image(platformImage: image)
                     .resizable()
                     .scaledToFill()
             } else {
@@ -654,7 +720,7 @@ private struct QuiltCoverTile: View {
     }
 
     private var tileBackground: Color {
-        isSelected ? Color.accentColor.opacity(0.08) : Color(nsColor: .controlBackgroundColor)
+        isSelected ? Color.accentColor.opacity(0.08) : .quiltControlBackground
     }
 
     private var statusColor: Color {
@@ -734,10 +800,10 @@ private struct GalleryInspector: View {
     private var inspectorCover: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.2))
+                .fill(Color.quiltQuaternaryLabel.opacity(0.2))
 
-            if let data = coverPhoto?.thumbnailData, let image = NSImage(data: data) {
-                Image(nsImage: image)
+            if let data = coverPhoto?.thumbnailData, let image = PlatformImage(data: data) {
+                Image(platformImage: image)
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 8))

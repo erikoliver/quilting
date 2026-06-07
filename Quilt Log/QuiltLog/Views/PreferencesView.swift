@@ -3,6 +3,9 @@
 
 import SwiftUI
 
+#if os(macOS)
+import AppKit
+
 struct PreferencesView: View {
     @EnvironmentObject private var preferences: UserPreferences
 
@@ -84,3 +87,4 @@ struct PreferencesView: View {
         .padding(.vertical, 14)
     }
 }
+#endif

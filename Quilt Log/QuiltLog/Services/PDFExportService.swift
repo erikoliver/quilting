@@ -1,6 +1,7 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
+#if os(macOS)
 import AppKit
 import Foundation
 import ImageIO
@@ -400,3 +401,4 @@ enum PDFExportService {
         text.draw(in: rect, withAttributes: attributes)
     }
 }
+#endif
