@@ -8,35 +8,36 @@
 
 /* Begin PBXBuildFile section */
 		010000000000000000000001 /* QuiltLogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000101 /* QuiltLogApp.swift */; };
-		010000000000000000000002 /* Models/Quilt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000102 /* Models/Quilt.swift */; };
-		010000000000000000000003 /* Data/SQLiteDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000103 /* Data/SQLiteDatabase.swift */; };
-		010000000000000000000004 /* Data/QuiltStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000104 /* Data/QuiltStore.swift */; };
-		010000000000000000000005 /* Views/ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000105 /* Views/ContentView.swift */; };
-		010000000000000000000006 /* Views/QuiltDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000106 /* Views/QuiltDetailView.swift */; };
-		010000000000000000000007 /* Services/PDFExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000107 /* Services/PDFExportService.swift */; };
-		010000000000000000000008 /* Services/PDFPlaceholderDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000108 /* Services/PDFPlaceholderDocument.swift */; };
+		010000000000000000000002 /* Quilt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000102 /* Quilt.swift */; };
+		010000000000000000000003 /* SQLiteDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000103 /* SQLiteDatabase.swift */; };
+		010000000000000000000004 /* QuiltStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000104 /* QuiltStore.swift */; };
+		010000000000000000000005 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000105 /* ContentView.swift */; };
+		010000000000000000000006 /* QuiltDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000106 /* QuiltDetailView.swift */; };
+		010000000000000000000007 /* PDFExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000107 /* PDFExportService.swift */; };
+		010000000000000000000008 /* PDFPlaceholderDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000108 /* PDFPlaceholderDocument.swift */; };
 		010000000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000109 /* Assets.xcassets */; };
 		01000000000000000000000A /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010A /* libsqlite3.tbd */; };
-		01000000000000000000000B /* Services/SQLitePlaceholderDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010B /* Services/SQLitePlaceholderDocument.swift */; };
-		01000000000000000000000C /* Models/PDFExportPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010C /* Models/PDFExportPreset.swift */; };
-		01000000000000000000000D /* Views/PDFExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010D /* Views/PDFExportSheet.swift */; };
+		01000000000000000000000B /* SQLitePlaceholderDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010B /* SQLitePlaceholderDocument.swift */; };
+		01000000000000000000000C /* PDFExportPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010C /* PDFExportPreset.swift */; };
+		01000000000000000000000D /* PDFExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000010D /* PDFExportSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		010000000000000000000100 /* QuiltLog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuiltLog.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		010000000000000000000101 /* QuiltLogApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltLogApp.swift; sourceTree = "<group>"; };
-		010000000000000000000102 /* Models/Quilt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Quilt.swift; sourceTree = "<group>"; };
-		010000000000000000000103 /* Data/SQLiteDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/SQLiteDatabase.swift; sourceTree = "<group>"; };
-		010000000000000000000104 /* Data/QuiltStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/QuiltStore.swift; sourceTree = "<group>"; };
-		010000000000000000000105 /* Views/ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ContentView.swift; sourceTree = "<group>"; };
-		010000000000000000000106 /* Views/QuiltDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/QuiltDetailView.swift; sourceTree = "<group>"; };
-		010000000000000000000107 /* Services/PDFExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/PDFExportService.swift; sourceTree = "<group>"; };
-		010000000000000000000108 /* Services/PDFPlaceholderDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/PDFPlaceholderDocument.swift; sourceTree = "<group>"; };
+		010000000000000000000102 /* Quilt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Quilt.swift; sourceTree = "<group>"; };
+		010000000000000000000103 /* SQLiteDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDatabase.swift; sourceTree = "<group>"; };
+		010000000000000000000104 /* QuiltStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltStore.swift; sourceTree = "<group>"; };
+		010000000000000000000105 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		010000000000000000000106 /* QuiltDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltDetailView.swift; sourceTree = "<group>"; };
+		010000000000000000000107 /* PDFExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportService.swift; sourceTree = "<group>"; };
+		010000000000000000000108 /* PDFPlaceholderDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFPlaceholderDocument.swift; sourceTree = "<group>"; };
 		010000000000000000000109 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		01000000000000000000010A /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
-		01000000000000000000010B /* Services/SQLitePlaceholderDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/SQLitePlaceholderDocument.swift; sourceTree = "<group>"; };
-		01000000000000000000010C /* Models/PDFExportPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/PDFExportPreset.swift; sourceTree = "<group>"; };
-		01000000000000000000010D /* Views/PDFExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/PDFExportSheet.swift; sourceTree = "<group>"; };
+		01000000000000000000010B /* SQLitePlaceholderDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLitePlaceholderDocument.swift; sourceTree = "<group>"; };
+		01000000000000000000010C /* PDFExportPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportPreset.swift; sourceTree = "<group>"; };
+		01000000000000000000010D /* PDFExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportSheet.swift; sourceTree = "<group>"; };
+		01000000000000000000010E /* QuiltLog.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuiltLog.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,19 +65,52 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000101 /* QuiltLogApp.swift */,
-				010000000000000000000102 /* Models/Quilt.swift */,
-				010000000000000000000103 /* Data/SQLiteDatabase.swift */,
-				010000000000000000000104 /* Data/QuiltStore.swift */,
-				010000000000000000000105 /* Views/ContentView.swift */,
-				010000000000000000000106 /* Views/QuiltDetailView.swift */,
-				010000000000000000000107 /* Services/PDFExportService.swift */,
-				010000000000000000000108 /* Services/PDFPlaceholderDocument.swift */,
 				010000000000000000000109 /* Assets.xcassets */,
-				01000000000000000000010B /* Services/SQLitePlaceholderDocument.swift */,
-				01000000000000000000010C /* Models/PDFExportPreset.swift */,
-				01000000000000000000010D /* Views/PDFExportSheet.swift */,
+				01000000000000000000010E /* QuiltLog.entitlements */,
+				010000000000000000000304 /* Models */,
+				010000000000000000000305 /* Data */,
+				010000000000000000000306 /* Services */,
+				010000000000000000000307 /* Views */,
 			);
 			path = QuiltLog;
+			sourceTree = "<group>";
+		};
+		010000000000000000000304 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000102 /* Quilt.swift */,
+				01000000000000000000010C /* PDFExportPreset.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		010000000000000000000305 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000103 /* SQLiteDatabase.swift */,
+				010000000000000000000104 /* QuiltStore.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		010000000000000000000306 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000107 /* PDFExportService.swift */,
+				010000000000000000000108 /* PDFPlaceholderDocument.swift */,
+				01000000000000000000010B /* SQLitePlaceholderDocument.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		010000000000000000000307 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000105 /* ContentView.swift */,
+				010000000000000000000106 /* QuiltDetailView.swift */,
+				01000000000000000000010D /* PDFExportSheet.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 		010000000000000000000302 /* Frameworks */ = {
@@ -165,16 +199,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				010000000000000000000001 /* QuiltLogApp.swift in Sources */,
-				010000000000000000000002 /* Models/Quilt.swift in Sources */,
-				010000000000000000000003 /* Data/SQLiteDatabase.swift in Sources */,
-				010000000000000000000004 /* Data/QuiltStore.swift in Sources */,
-				010000000000000000000005 /* Views/ContentView.swift in Sources */,
-				010000000000000000000006 /* Views/QuiltDetailView.swift in Sources */,
-				010000000000000000000007 /* Services/PDFExportService.swift in Sources */,
-				010000000000000000000008 /* Services/PDFPlaceholderDocument.swift in Sources */,
-				01000000000000000000000B /* Services/SQLitePlaceholderDocument.swift in Sources */,
-				01000000000000000000000C /* Models/PDFExportPreset.swift in Sources */,
-				01000000000000000000000D /* Views/PDFExportSheet.swift in Sources */,
+				010000000000000000000002 /* Quilt.swift in Sources */,
+				010000000000000000000003 /* SQLiteDatabase.swift in Sources */,
+				010000000000000000000004 /* QuiltStore.swift in Sources */,
+				010000000000000000000005 /* ContentView.swift in Sources */,
+				010000000000000000000006 /* QuiltDetailView.swift in Sources */,
+				010000000000000000000007 /* PDFExportService.swift in Sources */,
+				010000000000000000000008 /* PDFPlaceholderDocument.swift in Sources */,
+				01000000000000000000000B /* SQLitePlaceholderDocument.swift in Sources */,
+				01000000000000000000000C /* PDFExportPreset.swift in Sources */,
+				01000000000000000000000D /* PDFExportSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -291,10 +325,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_ENTITLEMENTS = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -306,7 +340,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.2;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -318,10 +352,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_ENTITLEMENTS = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -333,7 +367,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.2;
+				MARKETING_VERSION = 0.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
