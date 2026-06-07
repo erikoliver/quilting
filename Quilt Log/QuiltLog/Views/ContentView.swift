@@ -15,12 +15,45 @@ struct ContentView: View {
     @State private var showingPDFExport = false
     @State private var searchFocusRequest = 0
     @State private var displayMode: DisplayMode = .list
+    @State private var sortOrder: QuiltSortOrder = .oldestFirst
+    @State private var groupingMode: QuiltGroupingMode = .status
+    @State private var availabilityFilter: QuiltAvailabilityFilter = .all
 
     private var selectedQuilt: Quilt? {
-        if let selectedQuiltID, let quilt = store.quilts.first(where: { $0.id == selectedQuiltID }) {
+        if let selectedQuiltID, let quilt = visibleQuilts.first(where: { $0.id == selectedQuiltID }) {
             return quilt
         }
-        return store.quilts.first
+        return visibleQuilts.first
+    }
+
+    private var visibleQuilts: [Quilt] {
+        let filteredByAvailability = store.filteredQuilts.filter { quilt in
+            switch availabilityFilter {
+            case .all:
+                return true
+            case .available:
+                return !quilt.giftedAlready
+            case .gifted:
+                return quilt.giftedAlready
+            }
+        }
+
+        return filteredByAvailability.sorted { first, second in
+            switch sortOrder {
+            case .oldestFirst:
+                return first.sequenceNumber == second.sequenceNumber
+                    ? first.quiltName.localizedStandardCompare(second.quiltName) == .orderedAscending
+                    : first.sequenceNumber < second.sequenceNumber
+            case .newestFirst:
+                return first.sequenceNumber == second.sequenceNumber
+                    ? first.quiltName.localizedStandardCompare(second.quiltName) == .orderedAscending
+                    : first.sequenceNumber > second.sequenceNumber
+            }
+        }
+    }
+
+    private var visibleQuiltGroups: [QuiltGroup] {
+        QuiltGroup.groups(for: visibleQuilts, groupingMode: groupingMode)
     }
 
     var body: some View {
@@ -28,24 +61,9 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 searchField
                 List(selection: $selectedQuiltID) {
-                    ForEach(QuiltStatus.allCases) { status in
-                        let quilts = store.filteredQuilts.filter { $0.status == status.rawValue }
-                        if !quilts.isEmpty {
-                            Section(status.rawValue) {
-                                ForEach(quilts) { quilt in
-                                    QuiltRow(quilt: quilt)
-                                        .tag(quilt.id)
-                                }
-                            }
-                        }
-                    }
-
-                    let other = store.filteredQuilts.filter { quilt in
-                        !QuiltStatus.allCases.map(\.rawValue).contains(quilt.status)
-                    }
-                    if !other.isEmpty {
-                        Section("Other") {
-                            ForEach(other) { quilt in
+                    ForEach(visibleQuiltGroups) { group in
+                        Section(group.title) {
+                            ForEach(group.quilts) { quilt in
                                 QuiltRow(quilt: quilt)
                                     .tag(quilt.id)
                             }
@@ -57,6 +75,8 @@ struct ContentView: View {
         } detail: {
             if displayMode == .gallery {
                 QuiltGalleryView(
+                    quiltGroups: visibleQuiltGroups,
+                    visibleCount: visibleQuilts.count,
                     selectedQuiltID: $selectedQuiltID,
                     displayMode: $displayMode,
                     selectedQuilt: selectedQuilt
@@ -76,6 +96,39 @@ struct ContentView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 150)
                 .help("Switch between list detail and visual gallery")
+            }
+
+            ToolbarItem {
+                Divider()
+            }
+
+            ToolbarItemGroup {
+                Picker("Sort", selection: $sortOrder) {
+                    ForEach(QuiltSortOrder.allCases) { order in
+                        Text(order.title).tag(order)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 125)
+                .help("Sort quilts")
+
+                Picker("Group", selection: $groupingMode) {
+                    ForEach(QuiltGroupingMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 115)
+                .help("Group quilts")
+
+                Picker("Show", selection: $availabilityFilter) {
+                    ForEach(QuiltAvailabilityFilter.allCases) { filter in
+                        Text(filter.title).tag(filter)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 105)
+                .help("Filter quilts by gifting status")
             }
 
             ToolbarItemGroup {
@@ -133,7 +186,7 @@ struct ContentView: View {
         } message: { quilt in
             Text("This will permanently delete “\(quilt.quiltName)” and its stored photos, then close the sequence-number gap.")
         }
-        .onChange(of: store.quilts) { _, quilts in
+        .onChange(of: visibleQuilts) { _, quilts in
             if selectedQuiltID == nil || !quilts.contains(where: { $0.id == selectedQuiltID }) {
                 selectedQuiltID = quilts.first?.id
             }
@@ -237,8 +290,94 @@ private enum DisplayMode {
     case gallery
 }
 
+private enum QuiltSortOrder: String, CaseIterable, Identifiable {
+    case oldestFirst
+    case newestFirst
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .oldestFirst:
+            return "Oldest First"
+        case .newestFirst:
+            return "Newest First"
+        }
+    }
+}
+
+private enum QuiltGroupingMode: String, CaseIterable, Identifiable {
+    case status
+    case availability
+    case none
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .status:
+            return "By Status"
+        case .availability:
+            return "By Gifted"
+        case .none:
+            return "No Groups"
+        }
+    }
+}
+
+private enum QuiltAvailabilityFilter: String, CaseIterable, Identifiable {
+    case all
+    case available
+    case gifted
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all:
+            return "All"
+        case .available:
+            return "Available"
+        case .gifted:
+            return "Gifted"
+        }
+    }
+}
+
+private struct QuiltGroup: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let quilts: [Quilt]
+
+    static func groups(for quilts: [Quilt], groupingMode: QuiltGroupingMode) -> [QuiltGroup] {
+        switch groupingMode {
+        case .none:
+            return [QuiltGroup(id: "all", title: "All Quilts", quilts: quilts)]
+        case .availability:
+            return [
+                QuiltGroup(id: "available", title: "Available", quilts: quilts.filter { !$0.giftedAlready }),
+                QuiltGroup(id: "gifted", title: "Gifted", quilts: quilts.filter(\.giftedAlready))
+            ].filter { !$0.quilts.isEmpty }
+        case .status:
+            let knownStatuses = Set(QuiltStatus.allCases.map(\.rawValue))
+            var groups = QuiltStatus.allCases.compactMap { status -> QuiltGroup? in
+                let matchingQuilts = quilts.filter { $0.status == status.rawValue }
+                guard !matchingQuilts.isEmpty else { return nil }
+                return QuiltGroup(id: status.rawValue, title: status.rawValue, quilts: matchingQuilts)
+            }
+            let otherQuilts = quilts.filter { !knownStatuses.contains($0.status) }
+            if !otherQuilts.isEmpty {
+                groups.append(QuiltGroup(id: "other", title: "Other", quilts: otherQuilts))
+            }
+            return groups
+        }
+    }
+}
+
 private struct QuiltGalleryView: View {
     @EnvironmentObject private var store: QuiltStore
+    let quiltGroups: [QuiltGroup]
+    let visibleCount: Int
     @Binding var selectedQuiltID: Int64?
     @Binding var displayMode: DisplayMode
     let selectedQuilt: Quilt?
@@ -252,23 +391,33 @@ private struct QuiltGalleryView: View {
             VStack(alignment: .leading, spacing: 12) {
                 galleryHeader
 
-                if store.filteredQuilts.isEmpty {
+                if visibleCount == 0 {
                     ContentUnavailableView("No Quilts", systemImage: "square.grid.3x3")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
-                            ForEach(store.filteredQuilts) { quilt in
-                                QuiltCoverTile(
-                                    quilt: quilt,
-                                    coverPhoto: coverPhoto(for: quilt),
-                                    isSelected: selectedQuiltID == quilt.id
-                                ) {
-                                    selectedQuiltID = quilt.id
+                        VStack(alignment: .leading, spacing: 18) {
+                            ForEach(quiltGroups) { group in
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text(group.title)
+                                        .font(.headline)
+                                        .padding(.horizontal, 20)
+
+                                    LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                                        ForEach(group.quilts) { quilt in
+                                            QuiltCoverTile(
+                                                quilt: quilt,
+                                                coverPhoto: coverPhoto(for: quilt),
+                                                isSelected: selectedQuiltID == quilt.id
+                                            ) {
+                                                selectedQuiltID = quilt.id
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal, 20)
                                 }
                             }
                         }
-                        .padding(.horizontal, 20)
                         .padding(.bottom, 20)
                     }
                 }
@@ -291,7 +440,7 @@ private struct QuiltGalleryView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Gallery")
                     .font(.title2.bold())
-                Text("\(store.filteredQuilts.count) quilts")
+                Text("\(visibleCount) quilts")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
