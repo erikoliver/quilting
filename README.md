@@ -11,4 +11,4 @@ These projects are built for personal use and have not been extensively tested. 
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See `LICENSE` and `NOTICE` for details.
+Each project is licensed under the Apache License, Version 2.0. See the `LICENSE` file inside each project folder for details.
