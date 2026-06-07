@@ -100,10 +100,6 @@ struct ContentView: View {
                 .help("Switch between list detail and visual gallery")
             }
 
-            ToolbarItem {
-                Divider()
-            }
-
             ToolbarItemGroup {
                 Picker("Sort", selection: $sortOrder) {
                     ForEach(QuiltSortOrder.allCases) { order in
