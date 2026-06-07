@@ -1,12 +1,14 @@
 # TODO
 
+TEST! These have not been tested yet.
+
 Possible additional quilt blocks:
 
 - Log cabin
 - Pineapple
 - Flying geese
 - Braided flying geese
-- Braid
+- Braid (multi-page?)
 - Woven star
-- Card Trick Block (See SSA 2022)
+- Card Trick Block
 - HST
