@@ -1,9 +1,14 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
-import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#else
+import PhotosUI
+import UIKit
+#endif
 
 struct QuiltDetailView: View {
     @EnvironmentObject private var store: QuiltStore
@@ -12,6 +17,9 @@ struct QuiltDetailView: View {
     @State private var lastSavedDraft: Quilt
     @State private var autoSaveTask: Task<Void, Never>?
     @State private var showingPhotoImporter = false
+#if os(iOS)
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+#endif
     @State private var isPhotoDropTargeted = false
     @State private var sequenceConflict: Quilt?
     @State private var displayedDatabaseGeneration: Int?
@@ -75,6 +83,7 @@ struct QuiltDetailView: View {
                 Text("Seq # \(draft.sequenceNumber) is already used by “\(sequenceConflict.quiltName)”. Make Space will shift the affected quilts so this quilt can use #\(draft.sequenceNumber).")
             }
         }
+#if os(macOS)
         .fileImporter(
             isPresented: $showingPhotoImporter,
             allowedContentTypes: [.image],
@@ -90,6 +99,11 @@ struct QuiltDetailView: View {
         .onPasteCommand(of: [.image, .fileURL]) { providers in
             addPhotos(from: providers)
         }
+#else
+        .onChange(of: selectedPhotoItems) { _, items in
+            addPhotos(from: items)
+        }
+#endif
     }
 
     private var header: some View {
@@ -150,7 +164,9 @@ struct QuiltDetailView: View {
                 }
                 labeled("Gifted") {
                     Toggle("Gifted Already", isOn: $draft.giftedAlready)
+#if os(macOS)
                         .toggleStyle(.checkbox)
+#endif
                 }
                 Color.clear.frame(width: 1, height: 1)
             }
@@ -164,18 +180,36 @@ struct QuiltDetailView: View {
                 Text("Photos")
                     .font(.headline)
                 Spacer()
+#if os(macOS)
                 Button {
                     pastePhotoFromPasteboard()
                 } label: {
                     Label("Paste Photo", systemImage: "doc.on.clipboard")
                 }
                 .help("Paste a copied image into this quilt")
+#elseif os(iOS)
+                Button {
+                    pastePhotoFromPasteboard()
+                } label: {
+                    Label("Paste Photo", systemImage: "doc.on.clipboard")
+                }
+#endif
 
+#if os(macOS)
                 Button {
                     showingPhotoImporter = true
                 } label: {
                     Label("Add Photos", systemImage: "photo.badge.plus")
                 }
+#else
+                PhotosPicker(
+                    selection: $selectedPhotoItems,
+                    matching: .images,
+                    photoLibrary: .shared()
+                ) {
+                    Label("Add Photos", systemImage: "photo.badge.plus")
+                }
+#endif
             }
 
             let photos = store.photosByQuiltID[draft.id] ?? []
@@ -221,7 +255,7 @@ struct QuiltDetailView: View {
                 .frame(minHeight: 120)
                 .overlay {
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(.separator)
+                        .stroke(Color.quiltSeparator)
                 }
         }
     }
@@ -285,6 +319,7 @@ struct QuiltDetailView: View {
         isApplyingSavedDraft = false
     }
 
+#if os(macOS)
     private func pastePhotoFromPasteboard() {
         let pasteboard = NSPasteboard.general
         if let image = NSImage(pasteboard: pasteboard),
@@ -309,6 +344,48 @@ struct QuiltDetailView: View {
             }
         }
     }
+#endif
+
+#if os(iOS)
+    private func pastePhotoFromPasteboard() {
+        guard let image = UIPasteboard.general.image,
+              let data = image.jpegData(compressionQuality: 0.9) else {
+            store.errorMessage = "The pasteboard does not contain an image."
+            return
+        }
+
+        do {
+            try store.addPhoto(to: draft, data: data, mimeType: "image/jpeg")
+        } catch {
+            store.errorMessage = error.localizedDescription
+        }
+    }
+#endif
+
+#if os(iOS)
+    private func addPhotos(from items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
+        let quilt = draft
+        Task {
+            for item in items {
+                do {
+                    guard let data = try await item.loadTransferable(type: Data.self) else { continue }
+                    let mimeType = Self.mimeType(for: item.supportedContentTypes.first?.identifier ?? UTType.jpeg.identifier)
+                    try await MainActor.run {
+                        try store.addPhoto(to: quilt, data: data, mimeType: mimeType)
+                    }
+                } catch {
+                    await MainActor.run {
+                        store.errorMessage = error.localizedDescription
+                    }
+                }
+            }
+            await MainActor.run {
+                selectedPhotoItems = []
+            }
+        }
+    }
+#endif
 
     private func addPhotos(from providers: [NSItemProvider]) {
         let quilt = draft
@@ -375,11 +452,13 @@ struct QuiltDetailView: View {
         return "image/jpeg"
     }
 
+#if os(macOS)
     private static func jpegData(for image: NSImage) -> Data? {
         guard let tiff = image.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
         return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.9])
     }
+#endif
 }
 
 private struct PhotoTile: View {
@@ -387,14 +466,15 @@ private struct PhotoTile: View {
     let photo: QuiltPhoto
     let isFirst: Bool
     let isLast: Bool
+    @State private var showingDeleteConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(.quaternary)
-                if let data = photo.thumbnailData, let image = NSImage(data: data) {
-                    Image(nsImage: image)
+                if let data = photo.thumbnailData, let image = PlatformImage(data: data) {
+                    Image(platformImage: image)
                         .resizable()
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -435,7 +515,7 @@ private struct PhotoTile: View {
                 Spacer()
 
                 Button(role: .destructive) {
-                    Task { await store.deletePhoto(photo) }
+                    showingDeleteConfirmation = true
                 } label: {
                     Label("Delete Photo", systemImage: "trash")
                 }
@@ -443,6 +523,17 @@ private struct PhotoTile: View {
                 .help("Delete photo")
             }
             .labelStyle(.iconOnly)
+        }
+        .confirmationDialog(
+            "Delete photo?",
+            isPresented: $showingDeleteConfirmation
+        ) {
+            Button("Delete Photo", role: .destructive) {
+                Task { await store.deletePhoto(photo) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete this stored quilt photo.")
         }
     }
 }

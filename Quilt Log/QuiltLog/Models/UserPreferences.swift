@@ -1,8 +1,10 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
-import AppKit
 import Foundation
+#if os(macOS)
+import AppKit
+#endif
 
 @MainActor
 final class UserPreferences: ObservableObject {
@@ -75,10 +77,14 @@ final class UserPreferences: ObservableObject {
     }
 
     private static func systemUserName() -> String {
+#if os(macOS)
         let fullName = NSFullUserName().trimmingCharacters(in: .whitespacesAndNewlines)
         if !fullName.isEmpty {
             return fullName
         }
         return NSUserName().trimmingCharacters(in: .whitespacesAndNewlines)
+#else
+        return "Quilt Log"
+#endif
     }
 }

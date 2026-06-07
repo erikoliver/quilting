@@ -47,6 +47,7 @@ struct MigrationProgress: Equatable {
 
 private enum BackupExportError: LocalizedError {
     case zipFailed(status: Int32, output: String)
+    case unsupportedOnThisPlatform
 
     var errorDescription: String? {
         switch self {
@@ -56,6 +57,8 @@ private enum BackupExportError: LocalizedError {
                 return "Could not create ZIP backup. The zip process exited with status \(status)."
             }
             return "Could not create ZIP backup. The zip process exited with status \(status): \(details)"
+        case .unsupportedOnThisPlatform:
+            return "This export is only available on Mac."
         }
     }
 }
@@ -299,12 +302,14 @@ final class QuiltStore: ObservableObject {
 
     func exportPDF(_ preset: PDFExportPreset, to url: URL, ownerName: String) {
         do {
+#if os(macOS)
             let didStartAccess = url.startAccessingSecurityScopedResource()
             defer {
                 if didStartAccess {
                     url.stopAccessingSecurityScopedResource()
                 }
             }
+#endif
             try PDFExportService.export(
                 preset: preset,
                 ownerName: ownerName,
@@ -317,7 +322,26 @@ final class QuiltStore: ObservableObject {
         }
     }
 
+    func temporaryPDFExportURL(for preset: PDFExportPreset, ownerName: String) throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuiltLogPDFExports", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent(preset.datedDefaultFilename)
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+        try PDFExportService.export(
+            preset: preset,
+            ownerName: ownerName,
+            quilts: filteredQuilts,
+            photosByQuiltID: photosByQuiltID,
+            to: url
+        )
+        return url
+    }
+
     func exportJSONBackup(to url: URL) throws {
+#if os(macOS)
         let didStartAccess = url.startAccessingSecurityScopedResource()
         defer {
             if didStartAccess {
@@ -349,6 +373,9 @@ final class QuiltStore: ObservableObject {
             try FileManager.default.removeItem(at: url)
         }
         try FileManager.default.copyItem(at: stagedZipURL, to: url)
+#else
+        throw BackupExportError.unsupportedOnThisPlatform
+#endif
     }
 
     func importDatabase(from url: URL) async throws {
@@ -431,15 +458,25 @@ final class QuiltStore: ObservableObject {
         } else if event.endDate != nil {
             cloudSyncStatus = CloudSyncStatus(
                 phase: .idle,
-                message: "\(action) finished",
+                message: "iCloud synchronized",
                 lastUpdated: event.endDate
             )
+            refreshAfterCloudKitImportIfNeeded(event)
         } else {
             cloudSyncStatus = CloudSyncStatus(
                 phase: phase,
                 message: "\(action) in progress",
                 lastUpdated: event.startDate
             )
+        }
+    }
+
+    private func refreshAfterCloudKitImportIfNeeded(_ event: NSPersistentCloudKitContainer.Event) {
+        guard event.type == .import else { return }
+        do {
+            try fetchQuilts()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -713,6 +750,7 @@ final class QuiltStore: ObservableObject {
         return filename
     }
 
+#if os(macOS)
     private func zip(directory: URL, to destination: URL) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
@@ -728,6 +766,7 @@ final class QuiltStore: ObservableObject {
             throw BackupExportError.zipFailed(status: process.terminationStatus, output: output)
         }
     }
+#endif
 
     private static func quiltDTO(from record: QuiltRecord) -> Quilt {
         Quilt(
