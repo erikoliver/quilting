@@ -12,6 +12,9 @@ import UIKit
 
 struct QuiltDetailView: View {
     @EnvironmentObject private var store: QuiltStore
+#if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+#endif
     let quilt: Quilt
     @State private var draft: Quilt
     @State private var lastSavedDraft: Quilt
@@ -39,7 +42,7 @@ struct QuiltDetailView: View {
                 photos
                 notes
             }
-            .padding(24)
+            .padding(detailPadding)
         }
         .id(draft.id)
         .onAppear {
@@ -107,71 +110,119 @@ struct QuiltDetailView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 6) {
-                TextField("Quilt Name", text: $draft.quiltName)
-                    .font(.title.bold())
-                    .textFieldStyle(.plain)
-                Text("#\(draft.sequenceNumber)  \(draft.status)")
-                    .foregroundStyle(.secondary)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline) {
+                titleBlock
+                Spacer()
+                revertButton
             }
-            Spacer()
-            Button {
-                revertDraft()
-            } label: {
-                Label("Revert", systemImage: "arrow.uturn.backward")
+
+            VStack(alignment: .leading, spacing: 12) {
+                titleBlock
+                revertButton
             }
-            .disabled(draft == lastSavedDraft)
         }
     }
 
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            TextField("Quilt Name", text: $draft.quiltName)
+                .font(titleFont)
+                .textFieldStyle(.plain)
+            Text("#\(draft.sequenceNumber)  \(draft.status)")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var revertButton: some View {
+        Button {
+            revertDraft()
+        } label: {
+            Label("Revert", systemImage: "arrow.uturn.backward")
+        }
+        .disabled(draft == lastSavedDraft)
+    }
+
+    @ViewBuilder
     private var fields: some View {
-        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 12) {
-            GridRow {
-                labeled("Seq #") {
+        if isCompactWidth {
+            VStack(alignment: .leading, spacing: 6) {
+                compactField("Seq #") {
                     TextField("Seq #", value: $draft.sequenceNumber, format: .number)
-                        .frame(width: 90)
                 }
-                labeled("Status") {
+                compactField("Status") {
                     Picker("Status", selection: $draft.status) {
                         ForEach(QuiltStatus.allCases) { status in
                             Text(status.rawValue).tag(status.rawValue)
                         }
                     }
-                    .labelsHidden()
-                    .frame(width: 230)
                 }
-                labeled("Date") {
+                compactField("Date") {
                     TextField("YYYY-MM-DD", text: $draft.quiltDate)
-                        .frame(width: 140)
                 }
-            }
-            GridRow {
-                labeled("Pattern") {
+                compactField("Pattern") {
                     TextField("Pattern Name", text: $draft.patternName)
                 }
-                labeled("Fabric") {
+                compactField("Fabric") {
                     TextField("Fabric Reminder", text: $draft.fabricReminder)
                 }
-                labeled("Size") {
+                compactField("Size") {
                     TextField("Approx Size", text: $draft.approxSize)
-                        .frame(width: 160)
                 }
-            }
-            GridRow {
-                labeled("Recipient") {
+                compactField("Recipient") {
                     TextField("Recipient", text: $draft.recipient)
                 }
-                labeled("Gifted") {
-                    Toggle("Gifted Already", isOn: $draft.giftedAlready)
-#if os(macOS)
-                        .toggleStyle(.checkbox)
-#endif
-                }
-                Color.clear.frame(width: 1, height: 1)
+                Toggle("Gifted Already", isOn: $draft.giftedAlready)
             }
+            .textFieldStyle(.roundedBorder)
+        } else {
+            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 12) {
+                GridRow {
+                    labeled("Seq #") {
+                        TextField("Seq #", value: $draft.sequenceNumber, format: .number)
+                            .frame(width: 90)
+                    }
+                    labeled("Status") {
+                        Picker("Status", selection: $draft.status) {
+                            ForEach(QuiltStatus.allCases) { status in
+                                Text(status.rawValue).tag(status.rawValue)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 230)
+                    }
+                    labeled("Date") {
+                        TextField("YYYY-MM-DD", text: $draft.quiltDate)
+                            .frame(width: 140)
+                    }
+                }
+                GridRow {
+                    labeled("Pattern") {
+                        TextField("Pattern Name", text: $draft.patternName)
+                    }
+                    labeled("Fabric") {
+                        TextField("Fabric Reminder", text: $draft.fabricReminder)
+                    }
+                    labeled("Size") {
+                        TextField("Approx Size", text: $draft.approxSize)
+                            .frame(width: 160)
+                    }
+                }
+                GridRow {
+                    labeled("Recipient") {
+                        TextField("Recipient", text: $draft.recipient)
+                    }
+                    labeled("Gifted") {
+                        Toggle("Gifted Already", isOn: $draft.giftedAlready)
+#if os(macOS)
+                            .toggleStyle(.checkbox)
+#endif
+                    }
+                    Color.clear.frame(width: 1, height: 1)
+                }
+            }
+            .textFieldStyle(.roundedBorder)
         }
-        .textFieldStyle(.roundedBorder)
     }
 
     private var photos: some View {
@@ -217,7 +268,7 @@ struct QuiltDetailView: View {
                 ContentUnavailableView("No Photos", systemImage: "photo")
                     .frame(maxWidth: .infinity, minHeight: 160)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: photoTileMinimumWidth), spacing: 12)], spacing: 12) {
                     ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
                         PhotoTile(
                             photo: photo,
@@ -267,6 +318,36 @@ struct QuiltDetailView: View {
                 .foregroundStyle(.secondary)
             content()
         }
+    }
+
+    private func compactField<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            content()
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var isCompactWidth: Bool {
+#if os(iOS)
+        horizontalSizeClass == .compact
+#else
+        false
+#endif
+    }
+
+    private var detailPadding: CGFloat {
+        isCompactWidth ? 16 : 24
+    }
+
+    private var titleFont: Font {
+        isCompactWidth ? .title2.bold() : .title.bold()
+    }
+
+    private var photoTileMinimumWidth: CGFloat {
+        isCompactWidth ? 130 : 150
     }
 
     private func scheduleAutoSave() {

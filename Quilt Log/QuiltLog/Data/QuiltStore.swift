@@ -78,6 +78,8 @@ final class QuiltStore: ObservableObject {
     private var quiltUUIDByID: [Int64: String] = [:]
     private var photoUUIDByID: [Int64: String] = [:]
     private var cloudKitEventObserver: NSObjectProtocol?
+    private var cloudImportRefreshTask: Task<Void, Never>?
+    private var deferredPhotoRefreshTask: Task<Void, Never>?
 
     private static let thumbnailMaxSide: CGFloat = 240
     private static let thumbnailJPEGCompression: CGFloat = 0.64
@@ -95,6 +97,8 @@ final class QuiltStore: ObservableObject {
         if let cloudKitEventObserver {
             NotificationCenter.default.removeObserver(cloudKitEventObserver)
         }
+        cloudImportRefreshTask?.cancel()
+        deferredPhotoRefreshTask?.cancel()
     }
 
     var filteredQuilts: [Quilt] {
@@ -107,19 +111,30 @@ final class QuiltStore: ObservableObject {
 
     func load() async {
         do {
+            cloudSyncStatus = CloudSyncStatus(
+                phase: .settingUp,
+                message: "Preparing iCloud library",
+                lastUpdated: Date()
+            )
             databaseURL = try Self.legacyDatabaseURL()
             try await migrateLegacySQLiteIfNeeded()
-            try fetchQuilts()
+            try fetchQuilts(loadPhotos: false)
+            startDeferredPhotoRefresh()
+            if quilts.isEmpty {
+                startCloudImportRefreshPolling()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    func fetchQuilts() throws {
+    func fetchQuilts(loadPhotos: Bool = true) throws {
         let records = try sortedQuiltRecords()
         quiltUUIDByID = Dictionary(uniqueKeysWithValues: records.map { (Self.id(for: $0), $0.uuid) })
         quilts = records.map(Self.quiltDTO)
-        try fetchPhotos()
+        if loadPhotos {
+            try fetchPhotos()
+        }
         databaseGeneration += 1
     }
 
@@ -444,6 +459,7 @@ final class QuiltStore: ObservableObject {
         }
 
         if let error = event.error, !Self.isTransientCloudKitQueueError(error) {
+            stopCloudImportRefreshPolling()
             cloudSyncStatus = CloudSyncStatus(
                 phase: .failed,
                 message: "\(action) failed: \(error.localizedDescription)",
@@ -456,6 +472,7 @@ final class QuiltStore: ObservableObject {
                 lastUpdated: event.endDate ?? Date()
             )
         } else if event.endDate != nil {
+            stopCloudImportRefreshPolling()
             cloudSyncStatus = CloudSyncStatus(
                 phase: .idle,
                 message: "iCloud synchronized",
@@ -468,15 +485,58 @@ final class QuiltStore: ObservableObject {
                 message: "\(action) in progress",
                 lastUpdated: event.startDate
             )
+            if event.type == .import || event.type == .setup {
+                startCloudImportRefreshPolling()
+            }
         }
     }
 
     private func refreshAfterCloudKitImportIfNeeded(_ event: NSPersistentCloudKitContainer.Event) {
         guard event.type == .import else { return }
         do {
-            try fetchQuilts()
+            try fetchQuilts(loadPhotos: false)
+            startDeferredPhotoRefresh()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func startCloudImportRefreshPolling() {
+        guard cloudImportRefreshTask == nil else { return }
+        cloudImportRefreshTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                do {
+                    try self.fetchQuilts(loadPhotos: false)
+                    if !self.quilts.isEmpty {
+                        self.startDeferredPhotoRefresh()
+                        self.stopCloudImportRefreshPolling()
+                    }
+                } catch {
+                    self.errorMessage = error.localizedDescription
+                    self.stopCloudImportRefreshPolling()
+                }
+            }
+        }
+    }
+
+    private func stopCloudImportRefreshPolling() {
+        cloudImportRefreshTask?.cancel()
+        cloudImportRefreshTask = nil
+    }
+
+    private func startDeferredPhotoRefresh() {
+        guard deferredPhotoRefreshTask == nil else { return }
+        deferredPhotoRefreshTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            guard let self, !Task.isCancelled else { return }
+            do {
+                try self.fetchPhotos()
+            } catch {
+                self.errorMessage = error.localizedDescription
+            }
+            self.deferredPhotoRefreshTask = nil
         }
     }
 
@@ -591,13 +651,12 @@ final class QuiltStore: ObservableObject {
     }
 
     private func sortedQuiltRecords() throws -> [QuiltRecord] {
-        var descriptor = FetchDescriptor<QuiltRecord>(
+        let descriptor = FetchDescriptor<QuiltRecord>(
             sortBy: [
                 SortDescriptor(\.sequenceNumber),
                 SortDescriptor(\.quiltName)
             ]
         )
-        descriptor.relationshipKeyPathsForPrefetching = [\.photos]
         return try context.fetch(descriptor)
     }
 

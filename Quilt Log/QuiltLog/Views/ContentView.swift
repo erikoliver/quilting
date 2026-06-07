@@ -5,6 +5,7 @@ import SwiftUI
 #if os(macOS)
 import AppKit
 #else
+import OSLog
 import UIKit
 #endif
 
@@ -15,6 +16,9 @@ extension Notification.Name {
 struct ContentView: View {
     @EnvironmentObject private var store: QuiltStore
     @EnvironmentObject private var preferences: UserPreferences
+#if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+#endif
     @State private var selectedQuiltID: Int64?
     @State private var showingDeleteConfirmation = false
     @State private var showingPDFExport = false
@@ -26,12 +30,18 @@ struct ContentView: View {
 #if os(iOS)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var pdfShareItem: PDFShareItem?
+    @State private var iPhoneDetailQuiltID: Int64?
 #endif
 
     private var selectedQuilt: Quilt? {
         if let selectedQuiltID, let quilt = visibleQuilts.first(where: { $0.id == selectedQuiltID }) {
             return quilt
         }
+#if os(iOS)
+        if horizontalSizeClass == .compact {
+            return nil
+        }
+#endif
         return visibleQuilts.first
     }
 
@@ -93,7 +103,9 @@ struct ContentView: View {
                 Text("This will permanently delete “\(quilt.quiltName)” and its stored photos, then close the sequence-number gap.")
             }
             .onChange(of: visibleQuilts) { _, quilts in
-                if selectedQuiltID == nil || !quilts.contains(where: { $0.id == selectedQuiltID }) {
+                if let selectedQuiltID, !quilts.contains(where: { $0.id == selectedQuiltID }) {
+                    self.selectedQuiltID = nil
+                } else if selectedQuiltID == nil, shouldAutoSelectFirstQuilt {
                     selectedQuiltID = quilts.first?.id
                 }
             }
@@ -123,12 +135,24 @@ struct ContentView: View {
     @ViewBuilder
     private var platformSplitView: some View {
 #if os(iOS)
-        baseSplitView
-            .safeAreaInset(edge: .top, spacing: 0) {
-                iPadCommandBar
-            }
-            .sheet(item: $pdfShareItem) { item in
-                PDFActivityView(activityItems: [item.url])
+        if horizontalSizeClass == .compact {
+            iPhoneGalleryExperience
+                .overlay(alignment: .topTrailing) {
+                    iPhoneCommandMenu
+                        .padding(.top, 8)
+                        .padding(.trailing, 12)
+                }
+                .sheet(item: $pdfShareItem) { item in
+                    PDFActivityView(activityItems: [item.url])
+                }
+        } else {
+            baseSplitView
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    iPadCommandBar
+                }
+                .sheet(item: $pdfShareItem) { item in
+                    PDFActivityView(activityItems: [item.url])
+                }
             }
 #else
         baseSplitView
@@ -141,6 +165,45 @@ struct ContentView: View {
             }
 #endif
     }
+
+#if os(iOS)
+    private var iPhoneGalleryExperience: some View {
+        NavigationStack {
+            ZStack(alignment: .bottom) {
+                QuiltGalleryView(
+                    quiltGroups: visibleQuiltGroups,
+                    visibleCount: visibleQuilts.count,
+                    selectedQuiltID: $selectedQuiltID,
+                    displayMode: .constant(.gallery),
+                    selectedQuilt: selectedQuilt,
+                    hideRecipients: preferences.hideRecipientsOnScreen,
+                    bottomContentInset: 88,
+                    showsInspectorButton: false,
+                    opensDetailsOnTap: true
+                ) { quilt in
+                    selectedQuiltID = quilt.id
+                    iPhoneDetailQuiltID = quilt.id
+                }
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+
+                searchField
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 14)
+            }
+            .navigationDestination(isPresented: Binding(
+                get: { iPhoneDetailQuiltID != nil },
+                set: { if !$0 { iPhoneDetailQuiltID = nil } }
+            )) {
+                if let quilt = store.quilts.first(where: { $0.id == iPhoneDetailQuiltID }) {
+                    QuiltDetailView(quilt: quilt)
+                } else {
+                    ContentUnavailableView("No Quilt Selected", systemImage: "square.grid.2x2")
+                }
+            }
+        }
+    }
+#endif
 
     @ViewBuilder
     private var baseSplitView: some View {
@@ -366,6 +429,73 @@ struct ContentView: View {
         .background(.thinMaterial)
     }
 
+    private var iPhoneCommandMenu: some View {
+        HStack(spacing: 8) {
+            Menu {
+                Button {
+                    sortOrder.toggle()
+                } label: {
+                    Label(sortOrder.title, systemImage: "arrow.up.arrow.down")
+                }
+                Picker("Group", selection: $groupingMode) {
+                    ForEach(QuiltGroupingMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                Picker("Show", selection: $availabilityFilter) {
+                    ForEach(QuiltAvailabilityFilter.allOptions) { filter in
+                        Text(filter.title).tag(filter)
+                    }
+                }
+            } label: {
+                Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                    .frame(width: 48, height: 48)
+            }
+            .accessibilityLabel("Filter and Sort")
+
+            Menu {
+                ForEach(PDFExportPreset.allCases) { preset in
+                    Button {
+                        sharePDF(preset)
+                    } label: {
+                        Label(preset.title, systemImage: "doc.richtext")
+                    }
+                }
+            } label: {
+                Image(systemName: "square.and.arrow.up.circle.fill")
+                    .frame(width: 48, height: 48)
+            }
+            .accessibilityLabel("Share PDF")
+
+            Button {
+                Task {
+                    if let newID = await store.createQuilt() {
+                        selectedQuiltID = newID
+                        iPhoneDetailQuiltID = newID
+                    }
+                }
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .frame(width: 48, height: 48)
+            }
+            .accessibilityLabel("New Quilt")
+
+            Button(role: .destructive) {
+                showingDeleteConfirmation = true
+            } label: {
+                Image(systemName: "trash.circle.fill")
+                    .frame(width: 48, height: 48)
+            }
+            .disabled(selectedQuilt == nil)
+            .accessibilityLabel("Delete Quilt")
+        }
+        .font(.system(size: 28, weight: .regular))
+        .symbolRenderingMode(.hierarchical)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(.thinMaterial, in: Capsule())
+    }
+
     private func sharePDF(_ preset: PDFExportPreset) {
         do {
             let url = try store.temporaryPDFExportURL(
@@ -429,6 +559,14 @@ struct ContentView: View {
             return false
         }
     }
+
+    private var shouldAutoSelectFirstQuilt: Bool {
+#if os(iOS)
+        horizontalSizeClass != .compact
+#else
+        true
+#endif
+    }
 }
 
 private struct InitialCloudSyncView: View {
@@ -468,9 +606,18 @@ private struct PDFActivityView: UIViewControllerRepresentable {
 #endif
 
 private struct SearchTextField: View {
+#if os(iOS)
+    private static let keyboardLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "QuiltLog", category: "Keyboard")
+#endif
     let placeholder: String
     @Binding var text: String
     @Binding var focusRequest: Int
+#if os(iOS)
+    @FocusState private var isFocused: Bool
+    @State private var draftText = ""
+    @State private var searchCommitTask: Task<Void, Never>?
+    @State private var focusStartedAt: Date?
+#endif
 
     var body: some View {
 #if os(macOS)
@@ -480,10 +627,96 @@ private struct SearchTextField: View {
             focusRequest: $focusRequest
         )
 #else
-        TextField(placeholder, text: $text)
-            .textFieldStyle(.plain)
+        HStack(spacing: 6) {
+            TextField(placeholder, text: $draftText)
+                .textFieldStyle(.plain)
+                .focused($isFocused)
+                .submitLabel(.search)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .onTapGesture {
+                    focusStartedAt = Date()
+                    Self.keyboardLogger.info("Search tap")
+                }
+                .onSubmit {
+                    commitSearchImmediately()
+                    isFocused = false
+                }
+
+            if !draftText.isEmpty {
+                Button {
+                    draftText = ""
+                    commitSearchImmediately()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear Search")
+            }
+        }
+            .onAppear {
+                draftText = text
+            }
+            .onDisappear {
+                searchCommitTask?.cancel()
+            }
+            .onChange(of: draftText) { _, value in
+                scheduleSearchCommit(value)
+            }
+            .onChange(of: text) { _, value in
+                if value != draftText {
+                    draftText = value
+                }
+            }
+            .onChange(of: focusRequest) { _, _ in
+                focusStartedAt = Date()
+                Self.keyboardLogger.info("Search focus requested")
+                isFocused = true
+            }
+            .onChange(of: isFocused) { _, focused in
+                if let focusStartedAt {
+                    Self.keyboardLogger.info("Search focus=\(focused, privacy: .public) after \(Date().timeIntervalSince(focusStartedAt), privacy: .public)s")
+                } else {
+                    Self.keyboardLogger.info("Search focus=\(focused, privacy: .public)")
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                if let focusStartedAt {
+                    Self.keyboardLogger.info("keyboardWillShow after \(Date().timeIntervalSince(focusStartedAt), privacy: .public)s")
+                } else {
+                    Self.keyboardLogger.info("keyboardWillShow")
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
+                if let focusStartedAt {
+                    Self.keyboardLogger.info("keyboardDidShow after \(Date().timeIntervalSince(focusStartedAt), privacy: .public)s")
+                } else {
+                    Self.keyboardLogger.info("keyboardDidShow")
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                Self.keyboardLogger.info("keyboardWillHide")
+            }
 #endif
     }
+
+#if os(iOS)
+    private func scheduleSearchCommit(_ value: String) {
+        searchCommitTask?.cancel()
+        searchCommitTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            text = value
+        }
+    }
+
+    private func commitSearchImmediately() {
+        searchCommitTask?.cancel()
+        text = draftText
+    }
+#endif
 }
 
 #if os(macOS)
@@ -731,6 +964,10 @@ private struct QuiltGalleryView: View {
     @Binding var displayMode: DisplayMode
     let selectedQuilt: Quilt?
     let hideRecipients: Bool
+    var bottomContentInset: CGFloat = 20
+    var showsInspectorButton = true
+    var opensDetailsOnTap = false
+    var openDetails: (Quilt) -> Void = { _ in }
 #if os(iOS)
     @State private var showingInspector = false
 #endif
@@ -765,9 +1002,16 @@ private struct QuiltGalleryView: View {
                                                 hideRecipient: hideRecipients
                                             ) {
                                                 selectedQuiltID = quilt.id
+                                                if opensDetailsOnTap {
+                                                    openDetails(quilt)
+                                                }
                                             } doubleClickAction: {
                                                 selectedQuiltID = quilt.id
-                                                displayMode = .list
+                                                if opensDetailsOnTap {
+                                                    openDetails(quilt)
+                                                } else {
+                                                    displayMode = .list
+                                                }
                                             }
                                         }
                                     }
@@ -775,7 +1019,7 @@ private struct QuiltGalleryView: View {
                                 }
                             }
                         }
-                        .padding(.bottom, 20)
+                        .padding(.bottom, bottomContentInset)
                     }
                 }
             }
@@ -818,14 +1062,16 @@ private struct QuiltGalleryView: View {
             }
             Spacer()
 #if os(iOS)
-            Button {
-                showingInspector = true
-            } label: {
-                Image(systemName: "info.circle")
+            if showsInspectorButton {
+                Button {
+                    showingInspector = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.bordered)
+                .disabled(selectedQuilt == nil)
+                .accessibilityLabel("Show Quilt Details")
             }
-            .buttonStyle(.bordered)
-            .disabled(selectedQuilt == nil)
-            .accessibilityLabel("Show Quilt Details")
 #endif
         }
         .padding(.horizontal, 20)
