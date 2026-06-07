@@ -25,6 +25,14 @@ Open `QuiltLog.xcodeproj` in Xcode and run the `QuiltLog` scheme.
 
 The app does not require import scripts or generated seed data. Use the File menu to import or export Quilt Log SQLite backups.
 
+To package a notarized app for release, place `QuiltLog.app` in the ignored `dist/` folder and run:
+
+```zsh
+scripts/make_dmg.sh
+```
+
+The script checks the app signature, creates `dist/QuiltLog-<version>.dmg`, verifies the DMG, and checks the packaged app signature.
+
 ## License
 
 Apache-2.0
