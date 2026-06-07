@@ -83,6 +83,27 @@ final class SQLiteDatabase {
         sqlite3_last_insert_rowid(db)
     }
 
+    func backup(to url: URL) throws {
+        var destination: OpaquePointer?
+        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+        if sqlite3_open_v2(url.path, &destination, flags, nil) != SQLITE_OK {
+            defer { sqlite3_close(destination) }
+            throw SQLiteError.openFailed(Self.errorMessage(destination))
+        }
+        defer { sqlite3_close(destination) }
+        try Self.execute("PRAGMA journal_mode = MEMORY", in: destination)
+        try Self.execute("PRAGMA temp_store = MEMORY", in: destination)
+
+        guard let backup = sqlite3_backup_init(destination, "main", db, "main") else {
+            throw SQLiteError.stepFailed(Self.errorMessage(destination))
+        }
+        defer { sqlite3_backup_finish(backup) }
+
+        guard sqlite3_backup_step(backup, -1) == SQLITE_DONE else {
+            throw SQLiteError.stepFailed(Self.errorMessage(destination))
+        }
+    }
+
     static func bindText(_ value: String?, to index: Int32, in statement: OpaquePointer?) throws {
         if let value {
             guard sqlite3_bind_text(statement, index, value, -1, SQLITE_TRANSIENT) == SQLITE_OK else {
@@ -119,6 +140,15 @@ final class SQLiteDatabase {
     private static func errorMessage(_ db: OpaquePointer?) -> String {
         guard let message = sqlite3_errmsg(db) else { return "Unknown SQLite error." }
         return String(cString: message)
+    }
+
+    private static func execute(_ sql: String, in db: OpaquePointer?) throws {
+        var error: UnsafeMutablePointer<CChar>?
+        if sqlite3_exec(db, sql, nil, nil, &error) != SQLITE_OK {
+            let message = error.map { String(cString: $0) } ?? Self.errorMessage(db)
+            sqlite3_free(error)
+            throw SQLiteError.stepFailed(message)
+        }
     }
 }
 

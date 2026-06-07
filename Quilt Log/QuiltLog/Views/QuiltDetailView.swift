@@ -9,13 +9,18 @@ struct QuiltDetailView: View {
     @EnvironmentObject private var store: QuiltStore
     let quilt: Quilt
     @State private var draft: Quilt
+    @State private var lastSavedDraft: Quilt
+    @State private var autoSaveTask: Task<Void, Never>?
     @State private var showingPhotoImporter = false
     @State private var isPhotoDropTargeted = false
     @State private var sequenceConflict: Quilt?
+    @State private var displayedDatabaseGeneration: Int?
+    @State private var isApplyingSavedDraft = false
 
     init(quilt: Quilt) {
         self.quilt = quilt
         _draft = State(initialValue: quilt)
+        _lastSavedDraft = State(initialValue: quilt)
     }
 
     var body: some View {
@@ -29,8 +34,28 @@ struct QuiltDetailView: View {
             .padding(24)
         }
         .id(draft.id)
+        .onAppear {
+            displayedDatabaseGeneration = store.databaseGeneration
+        }
         .onChange(of: quilt) { _, newValue in
-            draft = newValue
+            if displayedDatabaseGeneration == store.databaseGeneration {
+                flushPendingSave()
+            } else {
+                autoSaveTask?.cancel()
+            }
+            applySavedDraft(newValue)
+            displayedDatabaseGeneration = store.databaseGeneration
+        }
+        .onChange(of: draft) { _, newValue in
+            guard !isApplyingSavedDraft else { return }
+            guard newValue != lastSavedDraft else {
+                autoSaveTask?.cancel()
+                return
+            }
+            scheduleAutoSave()
+        }
+        .onDisappear {
+            flushPendingSave()
         }
         .alert("Sequence Number Already Used", isPresented: Binding(
             get: { sequenceConflict != nil },
@@ -78,11 +103,11 @@ struct QuiltDetailView: View {
             }
             Spacer()
             Button {
-                Task { await saveDraft() }
+                revertDraft()
             } label: {
-                Label("Save", systemImage: "checkmark")
+                Label("Revert", systemImage: "arrow.uturn.backward")
             }
-            .keyboardShortcut("s", modifiers: .command)
+            .disabled(draft == lastSavedDraft)
         }
     }
 
@@ -210,16 +235,54 @@ struct QuiltDetailView: View {
         }
     }
 
-    private func saveDraft() async {
+    private func scheduleAutoSave() {
+        autoSaveTask?.cancel()
+        let draftToSave = draft
+        let databaseGeneration = store.databaseGeneration
+        autoSaveTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            guard !Task.isCancelled else { return }
+            await saveDraftIfNeeded(draftToSave, databaseGeneration: databaseGeneration)
+        }
+    }
+
+    private func flushPendingSave() {
+        autoSaveTask?.cancel()
+        guard draft != lastSavedDraft else { return }
+        let draftToSave = draft
+        let databaseGeneration = store.databaseGeneration
+        Task { await saveDraftIfNeeded(draftToSave, databaseGeneration: databaseGeneration) }
+    }
+
+    private func saveDraftIfNeeded(_ draftToSave: Quilt, databaseGeneration: Int) async {
+        guard store.databaseGeneration == databaseGeneration else { return }
+        guard draftToSave != lastSavedDraft else { return }
         do {
-            if let conflict = try store.sequenceConflict(for: draft) {
-                sequenceConflict = conflict
+            if let conflict = try store.sequenceConflict(for: draftToSave) {
+                if draft.id == draftToSave.id {
+                    sequenceConflict = conflict
+                }
             } else {
-                await store.save(draft)
+                let didSave = await store.save(draftToSave)
+                if didSave, draft.id == draftToSave.id {
+                    lastSavedDraft = draftToSave
+                }
             }
         } catch {
             store.errorMessage = error.localizedDescription
         }
+    }
+
+    private func revertDraft() {
+        autoSaveTask?.cancel()
+        applySavedDraft(lastSavedDraft)
+    }
+
+    private func applySavedDraft(_ savedDraft: Quilt) {
+        isApplyingSavedDraft = true
+        draft = savedDraft
+        lastSavedDraft = savedDraft
+        isApplyingSavedDraft = false
     }
 
     private func pastePhotoFromPasteboard() {

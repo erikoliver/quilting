@@ -39,7 +39,34 @@ struct QuiltLogApp: App {
                 .keyboardShortcut("n", modifiers: .command)
             }
             CommandGroup(after: .newItem) {
-                Button("New Database...") {
+                Button("Import SQLite Backup...") {
+                    let panel = NSOpenPanel()
+                    panel.allowedContentTypes = [.database, .data]
+                    panel.allowsMultipleSelection = false
+                    panel.canChooseDirectories = false
+                    panel.canChooseFiles = true
+                    panel.title = "Import Quilt Log SQLite Backup"
+                    panel.message = "Choose a Quilt Log SQLite database to import. This will replace the current library."
+                    panel.prompt = "Import"
+
+                    guard panel.runModal() == .OK, let url = panel.url else { return }
+                    let alert = NSAlert()
+                    alert.alertStyle = .warning
+                    alert.messageText = "Replace current Quilt Log library?"
+                    alert.informativeText = "Importing \"\(url.lastPathComponent)\" will replace the app's current library. Export a backup first if you want to keep it."
+                    alert.addButton(withTitle: "Import")
+                    alert.addButton(withTitle: "Cancel")
+
+                    if alert.runModal() == .alertFirstButtonReturn {
+                        do {
+                            try store.importDatabase(from: url)
+                        } catch {
+                            store.errorMessage = error.localizedDescription
+                        }
+                    }
+                }
+
+                Button("Export SQLite Backup...") {
                     let panel = NSSavePanel()
                     panel.allowedContentTypes = [.database]
                     panel.canCreateDirectories = true
@@ -47,34 +74,36 @@ struct QuiltLogApp: App {
 
                     guard panel.runModal() == .OK, let url = panel.url else { return }
                     do {
-                        try store.createDatabase(at: url)
+                        try store.exportDatabase(to: url)
                     } catch {
                         store.errorMessage = error.localizedDescription
                     }
                 }
 
-                Button("Open Database...") {
-                    let panel = NSOpenPanel()
-                    panel.allowedContentTypes = [.database, .data]
-                    panel.allowsMultipleSelection = false
-                    panel.canChooseDirectories = false
-
-                    guard panel.runModal() == .OK, let url = panel.url else { return }
-                    do {
-                        try store.openDatabase(at: url)
-                    } catch {
-                        store.errorMessage = error.localizedDescription
-                    }
-                }
-                .keyboardShortcut("o", modifiers: .command)
-
-                Button("Show Database in Finder") {
+                Button("Show Data Folder in Finder") {
                     guard let databaseURL = store.databaseURL else { return }
                     NSWorkspace.shared.activateFileViewerSelecting([databaseURL])
                 }
                 .disabled(store.databaseURL == nil)
 
                 Divider()
+
+                Button("New Empty Library...") {
+                    let alert = NSAlert()
+                    alert.alertStyle = .warning
+                    alert.messageText = "Create a new empty Quilt Log library?"
+                    alert.informativeText = "This will replace the app's current library with an empty one. Export a backup first if you want to keep it."
+                    alert.addButton(withTitle: "Create Empty Library")
+                    alert.addButton(withTitle: "Cancel")
+
+                    if alert.runModal() == .alertFirstButtonReturn {
+                        do {
+                            try store.resetDatabase()
+                        } catch {
+                            store.errorMessage = error.localizedDescription
+                        }
+                    }
+                }
 
                 Button("Repair Numbering...") {
                     let alert = NSAlert()

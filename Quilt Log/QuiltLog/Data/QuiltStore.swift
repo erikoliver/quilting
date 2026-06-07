@@ -12,33 +12,21 @@ final class QuiltStore: ObservableObject {
     @Published var photosByQuiltID: [Int64: [QuiltPhoto]] = [:]
     @Published var searchText = ""
     @Published var errorMessage: String?
+    @Published private(set) var databaseGeneration = 0
     @Published private(set) var databaseURL: URL?
 
     private var database: SQLiteDatabase?
-    private var securityScopedDatabaseURL: URL?
     private static let thumbnailMaxSide: CGFloat = 240
     private static let thumbnailJPEGCompression: CGFloat = 0.64
+    private static let applicationSupportFolderName = "Quilt Log"
+    private static let applicationDatabaseFilename = "Quilt Log.sqlite"
     private static let databaseBookmarkKey = "databaseBookmark"
     private static let legacyDatabasePathKey = "lastOpenedDatabasePath"
-
-    deinit {
-        securityScopedDatabaseURL?.stopAccessingSecurityScopedResource()
-    }
-
-    private enum DatabaseSelection {
-        case open(URL)
-        case create(URL)
-    }
 
     private enum DatabaseCompatibility: Equatable {
         case quiltLog
         case sqliteButNotQuiltLog
         case notSQLite
-    }
-
-    private enum UnsupportedDatabaseChoice {
-        case chooseAnother
-        case createNew
     }
 
     var filteredQuilts: [Quilt] {
@@ -68,79 +56,79 @@ final class QuiltStore: ObservableObject {
 
     func load() async {
         do {
-            if let url = try Self.bookmarkedDatabaseURL() {
-                do {
-                    try openDatabase(at: url)
-                    return
-                } catch {
-                    Self.clearSavedDatabaseBookmark()
-                }
-            }
-            try openInitialDatabase()
-        } catch is CancellationError {
-            errorMessage = "Choose a database from the File menu to begin."
+            try openApplicationDatabase()
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func openInitialDatabase() throws {
-        while true {
-            switch try Self.promptForInitialDatabaseSelection() {
-            case .open(let url):
-                switch Self.databaseCompatibility(at: url) {
-                case .quiltLog:
-                    try openDatabase(at: url)
-                    return
-                case .sqliteButNotQuiltLog:
-                    if try Self.promptForUnsupportedDatabase(at: url) == .createNew {
-                        try createDatabase(at: Self.promptForNewDatabaseURL())
-                        return
-                    }
-                case .notSQLite:
-                    if try Self.promptForUnreadableDatabase(at: url) == .createNew {
-                        try createDatabase(at: Self.promptForNewDatabaseURL())
-                        return
-                    }
-                }
-            case .create(let url):
-                try createDatabase(at: url)
-                return
+    private func openApplicationDatabase() throws {
+        let url = try Self.applicationDatabaseURL()
+        if !FileManager.default.fileExists(atPath: url.path) {
+            if let legacyURL = try Self.bookmarkedDatabaseURL(),
+               Self.databaseCompatibility(at: legacyURL) == .quiltLog {
+                try Self.replaceApplicationDatabase(with: legacyURL)
+                Self.clearSavedDatabaseBookmark()
+            } else {
+                try Self.createEmptyDatabase(at: url)
             }
         }
+        try openOwnedDatabase(at: url)
     }
 
-    func openDatabase(at url: URL) throws {
-        let didStartAccess = url.startAccessingSecurityScopedResource()
-        do {
-            let openedDatabase = try SQLiteDatabase(path: url)
-            try Self.validateQuiltLogDatabase(openedDatabase)
-            stopAccessingCurrentDatabase()
-            database = openedDatabase
-            databaseURL = url
-            securityScopedDatabaseURL = didStartAccess ? url : nil
-            try Self.saveDatabaseBookmark(for: url)
-            try fetchQuilts()
-        } catch {
-            if didStartAccess {
-                url.stopAccessingSecurityScopedResource()
-            }
-            throw error
-        }
+    private func openOwnedDatabase(at url: URL) throws {
+        let openedDatabase = try SQLiteDatabase(path: url)
+        try Self.validateQuiltLogDatabase(openedDatabase)
+        database = openedDatabase
+        databaseURL = url
+        databaseGeneration += 1
+        try fetchQuilts()
     }
 
-    func createDatabase(at url: URL) throws {
+    func importDatabase(from url: URL) throws {
         let didStartAccess = url.startAccessingSecurityScopedResource()
         defer {
             if didStartAccess {
                 url.stopAccessingSecurityScopedResource()
             }
         }
-        if FileManager.default.fileExists(atPath: url.path) {
-            throw CocoaError(.fileWriteFileExists)
+
+        let importedDatabase = try SQLiteDatabase(path: url)
+        try Self.validateQuiltLogDatabase(importedDatabase)
+        database = nil
+        databaseURL = nil
+        do {
+            try Self.replaceApplicationDatabase(with: url)
+            try openOwnedDatabase(at: Self.applicationDatabaseURL())
+        } catch {
+            try? openOwnedDatabase(at: Self.applicationDatabaseURL())
+            throw error
         }
+    }
+
+    func exportDatabase(to url: URL) throws {
+        guard let database else { return }
+        let didStartAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: url.path) {
+            try fileManager.removeItem(at: url)
+        }
+        try database.backup(to: url)
+    }
+
+    func resetDatabase() throws {
+        database = nil
+        databaseURL = nil
+        let url = try Self.applicationDatabaseURL()
+        try Self.removeDatabaseFiles(at: url)
         try Self.createEmptyDatabase(at: url)
-        try openDatabase(at: url)
+        try openOwnedDatabase(at: url)
     }
 
     func fetchQuilts() throws {
@@ -170,12 +158,13 @@ final class QuiltStore: ObservableObject {
         try fetchPhotos()
     }
 
-    func save(_ quilt: Quilt) async {
+    @discardableResult
+    func save(_ quilt: Quilt) async -> Bool {
         do {
-            guard let database else { return }
+            guard let database else { return false }
             if let conflict = try sequenceConflict(for: quilt) {
                 errorMessage = "Seq # \(quilt.sequenceNumber) is already used by “\(conflict.quiltName)”. Choose another sequence number before saving."
-                return
+                return false
             }
             try database.run(
                 """
@@ -199,8 +188,10 @@ final class QuiltStore: ObservableObject {
                 sqlite3_bind_int64(statement, 11, quilt.id)
             }
             try fetchQuilts()
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -622,29 +613,22 @@ final class QuiltStore: ObservableObject {
         photosByQuiltID = Dictionary(grouping: photos, by: \.quiltID)
     }
 
-    private func stopAccessingCurrentDatabase() {
-        securityScopedDatabaseURL?.stopAccessingSecurityScopedResource()
-        securityScopedDatabaseURL = nil
-    }
-
     private static func bookmarkedDatabaseURL() throws -> URL? {
-        guard let bookmark = UserDefaults.standard.data(forKey: databaseBookmarkKey) else {
-            return nil
+        if let bookmark = UserDefaults.standard.data(forKey: databaseBookmarkKey) {
+            var isStale = false
+            return try URL(
+                resolvingBookmarkData: bookmark,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
         }
 
-        var isStale = false
-        let url = try URL(
-            resolvingBookmarkData: bookmark,
-            options: [.withSecurityScope],
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        )
-
-        if isStale {
-            try saveDatabaseBookmark(for: url)
+        if let path = UserDefaults.standard.string(forKey: legacyDatabasePathKey), !path.isEmpty {
+            return URL(fileURLWithPath: path)
         }
 
-        return url
+        return nil
     }
 
     private static func clearSavedDatabaseBookmark() {
@@ -652,122 +636,21 @@ final class QuiltStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: legacyDatabasePathKey)
     }
 
-    private static func promptForInitialDatabaseSelection() throws -> DatabaseSelection {
-        let alert = NSAlert()
-        alert.messageText = "Choose a Quilt Log database"
-        alert.informativeText = "Open an existing Quilt Log database, or create a new one in a folder you choose."
-        alert.addButton(withTitle: "Open Existing...")
-        alert.addButton(withTitle: "Create New...")
-        alert.addButton(withTitle: "Cancel")
-
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            return .open(try promptForExistingDatabaseURL())
-        case .alertSecondButtonReturn:
-            return .create(try promptForNewDatabaseURL())
-        default:
-            throw CancellationError()
-        }
+    private static func applicationDatabaseURL() throws -> URL {
+        try applicationSupportDirectory()
+            .appendingPathComponent(applicationDatabaseFilename, isDirectory: false)
     }
 
-    private static func promptForExistingDatabaseURL() throws -> URL {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.database, .data]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.title = "Open Quilt Log Database"
-        panel.message = "Choose an existing Quilt Log SQLite database."
-        panel.prompt = "Open"
-        panel.directoryURL = defaultDocumentsURL()
-
-        guard panel.runModal() == .OK, let url = panel.url else {
-            throw CancellationError()
-        }
-
-        return url
-    }
-
-    private static func promptForNewDatabaseURL() throws -> URL {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.canCreateDirectories = true
-        panel.title = "Create Quilt Log Database"
-        panel.message = "Choose a folder for the new Quilt Log database."
-        panel.prompt = "Create"
-        panel.directoryURL = defaultDocumentsURL()
-
-        guard panel.runModal() == .OK, let directory = panel.url else {
-            throw CancellationError()
-        }
-
-        return uniqueDatabaseURL(in: directory)
-    }
-
-    private static func defaultDocumentsURL() -> URL? {
-        try? FileManager.default.url(
-            for: .documentDirectory,
+    private static func applicationSupportDirectory() throws -> URL {
+        let directory = try FileManager.default.url(
+            for: .applicationSupportDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
         )
-    }
-
-    private static func uniqueDatabaseURL(in directory: URL) -> URL {
-        let fileManager = FileManager.default
-        let baseName = "Quilt Log"
-        let fileExtension = "sqlite"
-        var candidate = directory.appendingPathComponent(baseName).appendingPathExtension(fileExtension)
-        var suffix = 2
-
-        while fileManager.fileExists(atPath: candidate.path) {
-            candidate = directory
-                .appendingPathComponent("\(baseName) \(suffix)")
-                .appendingPathExtension(fileExtension)
-            suffix += 1
-        }
-
-        return candidate
-    }
-
-    private static func promptForUnsupportedDatabase(at url: URL) throws -> UnsupportedDatabaseChoice {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "\"\(url.lastPathComponent)\" is not a Quilt Log database"
-        alert.informativeText = "The file is a SQLite database, but it does not contain the Quilt Log schema. Choose a different file or create a new Quilt Log database."
-        alert.addButton(withTitle: "Choose Another...")
-        alert.addButton(withTitle: "Create New...")
-        alert.addButton(withTitle: "Cancel")
-
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            return .chooseAnother
-        case .alertSecondButtonReturn:
-            return .createNew
-        default:
-            throw CancellationError()
-        }
-    }
-
-    private static func promptForUnreadableDatabase(at url: URL) throws -> UnsupportedDatabaseChoice {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "\"\(url.lastPathComponent)\" could not be opened"
-        alert.informativeText = "Choose a Quilt Log SQLite database or create a new database."
-        alert.addButton(withTitle: "Choose Another...")
-        alert.addButton(withTitle: "Create New...")
-        alert.addButton(withTitle: "Cancel")
-
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            return .chooseAnother
-        case .alertSecondButtonReturn:
-            return .createNew
-        default:
-            throw CancellationError()
-        }
+        let appDirectory = directory.appendingPathComponent(applicationSupportFolderName, isDirectory: true)
+        try FileManager.default.createDirectory(at: appDirectory, withIntermediateDirectories: true)
+        return appDirectory
     }
 
     private static func databaseCompatibility(at url: URL) -> DatabaseCompatibility {
@@ -832,14 +715,43 @@ final class QuiltStore: ObservableObject {
         }
     }
 
-    private static func saveDatabaseBookmark(for url: URL) throws {
-        let bookmark = try url.bookmarkData(
-            options: [.withSecurityScope],
-            includingResourceValuesForKeys: nil,
-            relativeTo: nil
-        )
-        UserDefaults.standard.set(bookmark, forKey: databaseBookmarkKey)
-        UserDefaults.standard.set(url.path, forKey: legacyDatabasePathKey)
+    private static func replaceApplicationDatabase(with sourceURL: URL) throws {
+        let destinationURL = try applicationDatabaseURL()
+        if sourceURL.standardizedFileURL == destinationURL.standardizedFileURL {
+            return
+        }
+
+        let sourceAccess = sourceURL.startAccessingSecurityScopedResource()
+        defer {
+            if sourceAccess {
+                sourceURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let sourceDatabase = try SQLiteDatabase(path: sourceURL)
+        try validateQuiltLogDatabase(sourceDatabase)
+
+        let temporaryURL = destinationURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("sqlite")
+        try? FileManager.default.removeItem(at: temporaryURL)
+        try sourceDatabase.backup(to: temporaryURL)
+        try removeDatabaseFiles(at: destinationURL)
+        try FileManager.default.moveItem(at: temporaryURL, to: destinationURL)
+    }
+
+    private static func removeDatabaseFiles(at url: URL) throws {
+        let fileManager = FileManager.default
+        let urls = [
+            url,
+            URL(fileURLWithPath: url.path + "-journal"),
+            URL(fileURLWithPath: url.path + "-wal"),
+            URL(fileURLWithPath: url.path + "-shm")
+        ]
+        for url in urls where fileManager.fileExists(atPath: url.path) {
+            try fileManager.removeItem(at: url)
+        }
     }
 
     private static func createEmptyDatabase(at url: URL) throws {
