@@ -6,6 +6,7 @@ import SwiftData
 import XCTest
 @testable import QuiltLog
 
+#if os(macOS)
 @MainActor
 final class QuiltStoreMigrationTests: XCTestCase {
     func testImportsLegacySQLiteIntoSwiftDataAndExportsBackupZIP() async throws {
@@ -149,3 +150,4 @@ final class QuiltStoreMigrationTests: XCTestCase {
         }
     }
 }
+#endif

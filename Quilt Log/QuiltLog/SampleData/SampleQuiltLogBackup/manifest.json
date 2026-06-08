@@ -1,0 +1,529 @@
+{
+  "exportedAt": "2026-06-08T00:00:00Z",
+  "formatVersion": 1,
+  "quilts": [
+    {
+      "approxSize": "Twin",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Red and purple",
+      "giftedAlready": true,
+      "legacyID": 1,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Log Cabin",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-06T23:57:51Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 101,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/5DBBADDB-2250-4BF2-8A9E-90993C1B76CD.jpg",
+          "uuid": "5DBBADDB-2250-4BF2-8A9E-90993C1B76CD"
+        }
+      ],
+      "quiltDate": "2021-06-27",
+      "quiltName": "Log Cabin",
+      "recipient": "Reese",
+      "sequenceNumber": 1,
+      "status": "1 - Done",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "A709F3E8-E8DD-4565-BF60-F5706574BD68"
+    },
+    {
+      "approxSize": "Queen Topper",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Moda Petal Power",
+      "giftedAlready": true,
+      "legacyID": 2,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Karen Montgomery - Scrap Crazy 8",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-06T23:57:52Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 201,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/416D165B-1DE2-458C-ADFD-3E45B4AA09B5.jpg",
+          "uuid": "416D165B-1DE2-458C-ADFD-3E45B4AA09B5"
+        }
+      ],
+      "quiltDate": "2022-05-10",
+      "quiltName": "Scrap Crazy 8",
+      "recipient": "Parker",
+      "sequenceNumber": 2,
+      "status": "1 - Done",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "23B5E08D-51E6-4693-8AB3-E5FDEA20EE51"
+    },
+    {
+      "approxSize": "Table runner",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Counterpoint",
+      "giftedAlready": true,
+      "legacyID": 3,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Karen Montgomery - Cornered",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-07T00:05:03Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 301,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/0DD277C3-D28F-4BCC-A0AA-DA1C80AA9A1C.jpg",
+          "uuid": "0DD277C3-D28F-4BCC-A0AA-DA1C80AA9A1C"
+        }
+      ],
+      "quiltDate": "2023-06-12",
+      "quiltName": "Cornered",
+      "recipient": "Elliot",
+      "sequenceNumber": 3,
+      "status": "1 - Done",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "EEF6A695-870B-45F6-9CE2-76A624971CA5"
+    },
+    {
+      "approxSize": "Throw",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Tula Pink - Besties",
+      "giftedAlready": true,
+      "legacyID": 4,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Cozy Quilts - Upstream",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-07T00:13:21Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 401,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/11E36452-CE85-4AD4-9E11-0C0A8594AA12.jpg",
+          "uuid": "11E36452-CE85-4AD4-9E11-0C0A8594AA12"
+        }
+      ],
+      "quiltDate": "2024-05-01",
+      "quiltName": "Upstream",
+      "recipient": "Rowan",
+      "sequenceNumber": 4,
+      "status": "1 - Done",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "BF5213E2-FD94-458D-BB8E-C4EFE293700C"
+    },
+    {
+      "approxSize": "Throw",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Donna Jordan Batiks - Northcott",
+      "giftedAlready": true,
+      "legacyID": 5,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "King\u2019s Crown",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-07T00:23:45Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 501,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/623BA97F-E22B-4213-A54C-36EC9BBC9794.jpg",
+          "uuid": "623BA97F-E22B-4213-A54C-36EC9BBC9794"
+        }
+      ],
+      "quiltDate": "2025-06-19",
+      "quiltName": "King\u2019s Crown",
+      "recipient": "Blair",
+      "sequenceNumber": 5,
+      "status": "1 - Done",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "98B26BC4-F246-4921-8179-E1DB922C27B5"
+    },
+    {
+      "approxSize": "Throw",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Island Batik - William\u2019s Garden",
+      "giftedAlready": false,
+      "legacyID": 6,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Creative Grids - Wonky Log Cabin Trim Tool",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-07T00:36:07Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 601,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/2F6C74F7-95FA-4C52-B7F2-3621FCBA751C.jpg",
+          "uuid": "2F6C74F7-95FA-4C52-B7F2-3621FCBA751C"
+        }
+      ],
+      "quiltDate": "2025-09-20",
+      "quiltName": "Wonky Log Cabin",
+      "recipient": "",
+      "sequenceNumber": 6,
+      "status": "2 - Back from Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "6365F67D-1EAF-4C19-8D38-4DB3F0CC9182"
+    },
+    {
+      "approxSize": "Throw",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Moda - Words",
+      "giftedAlready": false,
+      "legacyID": 7,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Sew Kind of Wonderful - Giving Hands - Wonder Curve",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-06T23:34:48Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 701,
+          "mimeType": "image/heic",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/7E8F28B0-9B7F-40EC-9BD7-EBB75DE49E13.jpg",
+          "uuid": "7E8F28B0-9B7F-40EC-9BD7-EBB75DE49E13"
+        }
+      ],
+      "quiltDate": "2025-10-25",
+      "quiltName": "Giving Hands",
+      "recipient": "",
+      "sequenceNumber": 7,
+      "status": "2 - Back from Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "4FEDC105-D17D-4649-B6C1-4FC93DFD3710"
+    },
+    {
+      "approxSize": "Twin",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Vivid 2025 + Other",
+      "giftedAlready": false,
+      "legacyID": 8,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Karen Montgomery - Butterfly Fancy",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-07T00:36:07Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 801,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/B9A9E34E-25A4-4EE3-8593-2C1113B216E6.jpg",
+          "uuid": "B9A9E34E-25A4-4EE3-8593-2C1113B216E6"
+        }
+      ],
+      "quiltDate": "2025-11-09",
+      "quiltName": "Butterfly Fancy",
+      "recipient": "",
+      "sequenceNumber": 8,
+      "status": "2 - Back from Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "D4881C65-B615-4E3B-976F-AC8C9FF1691C"
+    },
+    {
+      "approxSize": "Queen",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Japanese fabrics",
+      "giftedAlready": false,
+      "legacyID": 9,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Fabric Cafe - Resilience",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-07T00:36:07Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 901,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/56B46E8D-DAE7-42B0-8565-193C4331F4ED.jpg",
+          "uuid": "56B46E8D-DAE7-42B0-8565-193C4331F4ED"
+        }
+      ],
+      "quiltDate": "2026-01-12",
+      "quiltName": "Resilience",
+      "recipient": "",
+      "sequenceNumber": 9,
+      "status": "2 - Back from Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "8F1DBB29-F869-4B8A-9BC7-BF92E2BB8B3D"
+    },
+    {
+      "approxSize": "TBD",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Moda Rainbow Sherbert",
+      "giftedAlready": true,
+      "legacyID": 10,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Caribbean Snowflake",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-06T23:34:48Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 1001,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/F8C1B691-C86C-4602-8F3E-0AF7CD29C931.jpg",
+          "uuid": "F8C1B691-C86C-4602-8F3E-0AF7CD29C931"
+        }
+      ],
+      "quiltDate": "2026-02-08",
+      "quiltName": "Caribbean Snowflake",
+      "recipient": "Quinn",
+      "sequenceNumber": 10,
+      "status": "2 - Back from Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "399D5B5C-008B-47F8-AE74-37F3D1D5E461"
+    },
+    {
+      "approxSize": "Throw",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Batiks",
+      "giftedAlready": false,
+      "legacyID": 11,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Day Away - Triple Stitch Collective",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-06T23:34:48Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 1101,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/8CFF5621-FFC1-4275-BFE5-BBB07F69AFDE.jpg",
+          "uuid": "8CFF5621-FFC1-4275-BFE5-BBB07F69AFDE"
+        }
+      ],
+      "quiltDate": "2026-02-22",
+      "quiltName": "Day Away",
+      "recipient": "",
+      "sequenceNumber": 11,
+      "status": "3 - At Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "1F797B5C-9092-48F5-A349-3179B665AB48"
+    },
+    {
+      "approxSize": "Throw",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Nouveau Soul - Island Batiks",
+      "giftedAlready": true,
+      "legacyID": 12,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Cozy Quilts - All Stars",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-07T00:36:07Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 1201,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/9669A6EC-19BB-4132-8BC6-11E9BB1B1839.jpg",
+          "uuid": "9669A6EC-19BB-4132-8BC6-11E9BB1B1839"
+        }
+      ],
+      "quiltDate": "2026-03-28",
+      "quiltName": "All Stars",
+      "recipient": "Blair",
+      "sequenceNumber": 12,
+      "status": "3 - At Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "D0B95D4D-31F9-4925-B40C-C4EE3CBE8521"
+    },
+    {
+      "approxSize": "TBD",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Tula Pink - True Colors",
+      "giftedAlready": false,
+      "legacyID": 13,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Cozy Quilts - Day Dreaming",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-07T00:36:08Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 1301,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/74A401AC-CB41-411C-B121-9035B466EDB3.jpg",
+          "uuid": "74A401AC-CB41-411C-B121-9035B466EDB3"
+        }
+      ],
+      "quiltDate": "2026-04-01",
+      "quiltName": "Day Dreaming",
+      "recipient": "",
+      "sequenceNumber": 13,
+      "status": "3 - At Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "0C9C3DCF-7529-42A0-89DC-8A418CFC1117"
+    },
+    {
+      "approxSize": "Throw",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Ai Sayama Cats",
+      "giftedAlready": false,
+      "legacyID": 14,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Eclipse (Fabric Cafe)",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-06T23:34:48Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 1401,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/BC1A2A00-F113-4051-B57E-109629978BD0.jpg",
+          "uuid": "BC1A2A00-F113-4051-B57E-109629978BD0"
+        }
+      ],
+      "quiltDate": "2026-04-05",
+      "quiltName": "Ai Sayama Cats in Waves",
+      "recipient": "",
+      "sequenceNumber": 14,
+      "status": "3 - At Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "B5D4F2FE-E777-41A5-BCD9-B00A850F96FE"
+    },
+    {
+      "approxSize": "Throw",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Tula Pink Greywork + Grunge Spots",
+      "giftedAlready": true,
+      "legacyID": 15,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Karen Montgomery - Crazier Eights - Fish",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-06T23:44:39Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 1501,
+          "mimeType": "image/heic",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/85869D7C-2C81-4AD4-9A95-FF7C9E5196AA.jpg",
+          "uuid": "85869D7C-2C81-4AD4-9A95-FF7C9E5196AA"
+        }
+      ],
+      "quiltDate": "2026-04-11",
+      "quiltName": "Fish",
+      "recipient": "Elliot",
+      "sequenceNumber": 15,
+      "status": "3 - At Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "EAA5C53A-2B8C-4EEB-9B5B-441DCC748F29"
+    },
+    {
+      "approxSize": "Baby",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Various - Tina",
+      "giftedAlready": false,
+      "legacyID": 16,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Cozy Quilts - No Measure Bargello",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-08T00:00:23Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 1601,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/061AED46-02EB-4ABC-860A-85EC3B79B929.jpg",
+          "uuid": "061AED46-02EB-4ABC-860A-85EC3B79B929"
+        }
+      ],
+      "quiltDate": "2026-05-08",
+      "quiltName": "No Measure Bargello",
+      "recipient": "",
+      "sequenceNumber": 16,
+      "status": "4 - To Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "C7ADD7E0-3DCC-4A1B-8981-DDB34681C545"
+    },
+    {
+      "approxSize": "Queen/Small King",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "Various",
+      "giftedAlready": true,
+      "legacyID": 17,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Karen Montgomery - Two Step Tango - Brown Bag Mystery 2026",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-06T23:34:48Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 1701,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/B62C8756-9C2B-4F48-8B21-4D1CAD650723.jpg",
+          "uuid": "B62C8756-9C2B-4F48-8B21-4D1CAD650723"
+        }
+      ],
+      "quiltDate": "2026-05-17",
+      "quiltName": "Two Step Tango",
+      "recipient": "Elliot",
+      "sequenceNumber": 17,
+      "status": "4 - To Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "CE814A4A-8065-4D4C-9A4C-180EEFB2E3EC"
+    },
+    {
+      "approxSize": "Baby",
+      "createdAt": "2026-06-06T22:46:05Z",
+      "fabricReminder": "African wax prints - Blue/Yello",
+      "giftedAlready": false,
+      "legacyID": 18,
+      "notes": "Sample data generated for simulator testing.",
+      "patternName": "Clam Toss - Latifah Saafir",
+      "photos": [
+        {
+          "caption": "",
+          "createdAt": "2026-06-06T23:34:48Z",
+          "imageFilename": null,
+          "isCover": true,
+          "legacyID": 1801,
+          "mimeType": "image/jpeg",
+          "sortOrder": 0,
+          "thumbnailFilename": "thumbnails/1AB5523E-D312-4A24-82E2-C966578548CA.jpg",
+          "uuid": "1AB5523E-D312-4A24-82E2-C966578548CA"
+        }
+      ],
+      "quiltDate": "2026-06-06",
+      "quiltName": "Clam Toss",
+      "recipient": "",
+      "sequenceNumber": 18,
+      "status": "4 - To Longarm",
+      "updatedAt": "2026-06-08T03:35:43Z",
+      "uuid": "16408B92-E3D9-432A-95E4-7B8D3DDC25A6"
+    }
+  ],
+  "syncBehavior": "Sanitized sample payload for local simulator testing; thumbnails only, with randomized recipients and generic notes."
+}

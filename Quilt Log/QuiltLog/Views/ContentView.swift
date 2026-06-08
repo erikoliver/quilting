@@ -186,6 +186,13 @@ struct ContentView: View {
                 }
                 .ignoresSafeArea(.keyboard, edges: .bottom)
 
+#if DEBUG && targetEnvironment(simulator)
+                if visibleQuilts.isEmpty {
+                    sampleDataButton
+                        .padding(.bottom, 92)
+                }
+#endif
+
                 searchField
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .padding(.horizontal, 12)
@@ -311,7 +318,10 @@ struct ContentView: View {
                     }
                 }
                 if visibleQuilts.isEmpty, isInitialCloudSyncActive {
-                    InitialCloudSyncView(message: store.cloudSyncStatus.message)
+                    InitialCloudSyncView(
+                        message: store.cloudSyncStatus.message,
+                        sampleDataAction: sampleDataAction
+                    )
                         .padding(20)
                 }
             }
@@ -334,9 +344,15 @@ struct ContentView: View {
         } else if let quilt = selectedQuilt {
             QuiltDetailView(quilt: quilt)
         } else if isInitialCloudSyncActive {
-            InitialCloudSyncView(message: store.cloudSyncStatus.message)
+            InitialCloudSyncView(
+                message: store.cloudSyncStatus.message,
+                sampleDataAction: sampleDataAction
+            )
         } else {
-            ContentUnavailableView("No Quilt Selected", systemImage: "square.grid.2x2")
+            VStack(spacing: 12) {
+                ContentUnavailableView("No Quilt Selected", systemImage: "square.grid.2x2")
+                sampleDataButton
+            }
         }
     }
 
@@ -567,10 +583,37 @@ struct ContentView: View {
         true
 #endif
     }
+
+    private var sampleDataAction: (() -> Void)? {
+#if DEBUG && targetEnvironment(simulator)
+        {
+            Task {
+                await store.importBundledSampleData()
+            }
+        }
+#else
+        nil
+#endif
+    }
+
+    @ViewBuilder
+    private var sampleDataButton: some View {
+#if DEBUG && targetEnvironment(simulator)
+        Button {
+            Task {
+                await store.importBundledSampleData()
+            }
+        } label: {
+            Label("Load Sample Data", systemImage: "tray.and.arrow.down")
+        }
+        .buttonStyle(.borderedProminent)
+#endif
+    }
 }
 
 private struct InitialCloudSyncView: View {
     let message: String
+    var sampleDataAction: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 12) {
@@ -583,6 +626,14 @@ private struct InitialCloudSyncView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
+            if let sampleDataAction {
+                Button {
+                    sampleDataAction()
+                } label: {
+                    Label("Load Sample Data", systemImage: "tray.and.arrow.down")
+                }
+                .buttonStyle(.borderedProminent)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

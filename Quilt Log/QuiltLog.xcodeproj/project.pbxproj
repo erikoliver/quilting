@@ -26,10 +26,12 @@
 		010000000000000000000011 /* BackupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000113 /* BackupModels.swift */; };
 		010000000000000000000012 /* MigrationProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000114 /* MigrationProgressView.swift */; };
 		010000000000000000000013 /* PlatformSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000115 /* PlatformSupport.swift */; };
+		010000000000000000000014 /* SampleData in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000118 /* SampleData */; };
 		010000000000000000000810 /* PDFExportPresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000811 /* PDFExportPresetTests.swift */; };
 		010000000000000000000822 /* UserPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000823 /* UserPreferencesTests.swift */; };
 		010000000000000000000824 /* QuiltStoreMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000825 /* QuiltStoreMigrationTests.swift */; };
 		010000000000000000000826 /* BackupImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000827 /* BackupImportTests.swift */; };
+		010000000000000000000828 /* QuiltStoreSharedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000829 /* QuiltStoreSharedTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,10 +69,12 @@
 		010000000000000000000115 /* PlatformSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformSupport.swift; sourceTree = "<group>"; };
 		010000000000000000000116 /* QuiltLog-iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "QuiltLog-iOS.entitlements"; sourceTree = "<group>"; };
 		010000000000000000000117 /* QuiltLog-iOS-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "QuiltLog-iOS-Info.plist"; sourceTree = "<group>"; };
+		010000000000000000000118 /* SampleData */ = {isa = PBXFileReference; lastKnownFileType = folder; path = SampleData; sourceTree = "<group>"; };
 		010000000000000000000811 /* PDFExportPresetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportPresetTests.swift; sourceTree = "<group>"; };
 		010000000000000000000823 /* UserPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferencesTests.swift; sourceTree = "<group>"; };
 		010000000000000000000825 /* QuiltStoreMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltStoreMigrationTests.swift; sourceTree = "<group>"; };
 		010000000000000000000827 /* BackupImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupImportTests.swift; sourceTree = "<group>"; };
+		010000000000000000000829 /* QuiltStoreSharedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltStoreSharedTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +112,7 @@
 				010000000000000000000101 /* QuiltLogApp.swift */,
 				010000000000000000000115 /* PlatformSupport.swift */,
 				010000000000000000000109 /* Assets.xcassets */,
+				010000000000000000000118 /* SampleData */,
 				01000000000000000000010E /* QuiltLog.entitlements */,
 				010000000000000000000116 /* QuiltLog-iOS.entitlements */,
 				010000000000000000000117 /* QuiltLog-iOS-Info.plist */,
@@ -184,6 +189,7 @@
 			children = (
 				010000000000000000000811 /* PDFExportPresetTests.swift */,
 				010000000000000000000823 /* UserPreferencesTests.swift */,
+				010000000000000000000829 /* QuiltStoreSharedTests.swift */,
 				010000000000000000000825 /* QuiltStoreMigrationTests.swift */,
 				010000000000000000000827 /* BackupImportTests.swift */,
 			);
@@ -283,6 +289,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				010000000000000000000009 /* Assets.xcassets in Resources */,
+				010000000000000000000014 /* SampleData in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -326,6 +333,7 @@
 			files = (
 				010000000000000000000810 /* PDFExportPresetTests.swift in Sources */,
 				010000000000000000000822 /* UserPreferencesTests.swift in Sources */,
+				010000000000000000000828 /* QuiltStoreSharedTests.swift in Sources */,
 				010000000000000000000824 /* QuiltStoreMigrationTests.swift in Sources */,
 				010000000000000000000826 /* BackupImportTests.swift in Sources */,
 			);
@@ -546,6 +554,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -554,8 +563,12 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/Contents/MacOS/QuiltLog";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				"TEST_HOST[sdk=iphoneos*]" = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/QuiltLog";
+				"TEST_HOST[sdk=iphonesimulator*]" = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/QuiltLog";
+				"TEST_HOST[sdk=macosx*]" = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/Contents/MacOS/QuiltLog";
 			};
 			name = Debug;
 		};
@@ -567,6 +580,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -575,8 +589,12 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/Contents/MacOS/QuiltLog";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				"TEST_HOST[sdk=iphoneos*]" = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/QuiltLog";
+				"TEST_HOST[sdk=iphonesimulator*]" = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/QuiltLog";
+				"TEST_HOST[sdk=macosx*]" = "$(BUILT_PRODUCTS_DIR)/QuiltLog.app/Contents/MacOS/QuiltLog";
 			};
 			name = Release;
 		};

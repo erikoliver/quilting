@@ -5,6 +5,7 @@ import SwiftData
 import XCTest
 @testable import QuiltLog
 
+#if os(macOS)
 @MainActor
 final class BackupImportTests: XCTestCase {
     func testImportsBackupIntoEmptyLibrary() throws {
@@ -310,3 +311,4 @@ final class BackupImportTests: XCTestCase {
         ISO8601DateFormatter().date(from: string)!
     }
 }
+#endif

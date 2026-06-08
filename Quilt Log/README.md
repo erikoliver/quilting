@@ -58,6 +58,16 @@ The Mac version also includes import and export tools. Use these when you want a
 
 On the Mac, a ZIP backup can be exported that includes your quilt data and images for use outside the program.
 
+## Privacy
+
+Quilt Log does not collect, sell, share, track, or analyze your quilt data. The app does not include developer-operated analytics, advertising, telemetry, cookies, or an account system.
+
+Your quilt records and photos stay in your local app library and, when iCloud is available and enabled for your Apple account, in your private Apple iCloud storage. That synchronization is handled by Apple’s iCloud system, not by a Quilt Log server.
+
+If you email the developer for support, questions, feedback, or TestFlight access, the developer will see the information you choose to send, including your email address. That information is used only to respond to you, help with the app, or manage TestFlight participation.
+
+For TestFlight users, Apple provides standard TestFlight diagnostics and telemetry to developers through App Store Connect. That Apple-provided TestFlight information is separate from Quilt Log’s own data collection; the app itself does not include developer-operated analytics or tracking.
+
 ## For Developers
 
 ### Building From Source
@@ -78,6 +88,21 @@ Run tests with:
 
 ```zsh
 xcodebuild test -project QuiltLog.xcodeproj -scheme QuiltLog -destination 'platform=macOS' -derivedDataPath .DerivedData
+```
+
+The unit test target also supports iPhone and iPad simulator runs. Use an installed simulator name from `xcrun simctl list devices available`, for example:
+
+```zsh
+xcodebuild test -project QuiltLog.xcodeproj -scheme QuiltLog -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath .DerivedData
+xcodebuild test -project QuiltLog.xcodeproj -scheme QuiltLog -destination 'platform=iOS Simulator,name=iPad Pro 11-inch (M5)' -derivedDataPath .DerivedData
+```
+
+Mac-only backup import/export tests are compiled out on iOS; shared store, preference, and PDF tests run on both platforms.
+
+Debug simulator builds include a small sanitized sample library for working without iCloud. When the simulator library is empty, use **Load Sample Data** in the app to import 18 representative quilts with thumbnails. The sample payload lives in `QuiltLog/SampleData/SampleQuiltLogBackup` and can be regenerated from a full backup with:
+
+```zsh
+uv run --python 3.14 python scripts/make_sample_backup.py 'dist/20260608 Quilt Log Backup.zip' QuiltLog/SampleData/SampleQuiltLogBackup
 ```
 
 ### License

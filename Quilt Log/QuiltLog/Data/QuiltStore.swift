@@ -477,37 +477,38 @@ final class QuiltStore: ObservableObject {
         let importedBackup = try readJSONBackup(from: url)
         defer { try? FileManager.default.removeItem(at: importedBackup.workingDirectory) }
 
-        let importedQuilts = importedBackup.manifest.quilts
-        let currentRecordsByUUID = Dictionary(uniqueKeysWithValues: try sortedQuiltRecords().map { ($0.uuid, $0) })
-        var nextSequenceNumber = (currentRecordsByUUID.values.map(\.sequenceNumber).max() ?? 0) + 1
-        var nextQuiltLegacyID = try nextLegacyQuiltID()
-        var nextPhotoLegacyID = try nextLegacyPhotoID()
-
-        let preparedPhotos = try prepareBackupPhotos(importedBackup)
-
-        for quilt in importedQuilts {
-            if let currentRecord = currentRecordsByUUID[quilt.uuid] {
-                guard resolution == .replaceExisting else { continue }
-                replace(currentRecord, with: quilt, photos: preparedPhotos[quilt.uuid] ?? [], nextPhotoLegacyID: &nextPhotoLegacyID)
-            } else {
-                let record = makeRecord(
-                    from: quilt,
-                    sequenceNumber: nextSequenceNumber,
-                    legacyID: nextQuiltLegacyID
-                )
-                nextSequenceNumber += 1
-                nextQuiltLegacyID += 1
-                context.insert(record)
-                insertPhotos(preparedPhotos[quilt.uuid] ?? [], for: record, nextPhotoLegacyID: &nextPhotoLegacyID)
-            }
-        }
-
-        try context.save()
-        try fetchQuilts()
+        try importBackupPayload(
+            manifest: importedBackup.manifest,
+            payloadDirectory: importedBackup.payloadDirectory,
+            resolution: resolution
+        )
 #else
         throw BackupImportError.unsupportedOnThisPlatform
 #endif
     }
+
+#if DEBUG && targetEnvironment(simulator)
+    func importBundledSampleData() async {
+        do {
+            guard let payloadDirectory = Bundle.main.url(
+                forResource: "SampleQuiltLogBackup",
+                withExtension: nil,
+                subdirectory: "SampleData"
+            ) else {
+                errorMessage = "Could not find bundled sample quilt data."
+                return
+            }
+            let manifest = try readBackupManifest(from: payloadDirectory)
+            try importBackupPayload(
+                manifest: manifest,
+                payloadDirectory: payloadDirectory,
+                resolution: .skipExisting
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+#endif
 
     func importDatabase(from url: URL) async throws {
         try await importLegacySQLite(from: url)
@@ -925,54 +926,59 @@ final class QuiltStore: ObservableObject {
         return filename
     }
 
-#if os(macOS)
-    private struct ImportedJSONBackup {
-        var manifest: QuiltLogBackup
-        var payloadDirectory: URL
-        var workingDirectory: URL
-    }
-
     private struct PreparedBackupPhoto {
         var backup: QuiltPhotoBackup
         var imageData: Data?
         var thumbnailData: Data?
     }
 
-    private func readJSONBackup(from url: URL) throws -> ImportedJSONBackup {
-        let didStartAccess = url.startAccessingSecurityScopedResource()
-        defer {
-            if didStartAccess {
-                url.stopAccessingSecurityScopedResource()
+    private func importBackupPayload(
+        manifest: QuiltLogBackup,
+        payloadDirectory: URL,
+        resolution: BackupImportResolution
+    ) throws {
+        try validateBackup(manifest, payloadDirectory: payloadDirectory)
+
+        let currentRecordsByUUID = Dictionary(uniqueKeysWithValues: try sortedQuiltRecords().map { ($0.uuid, $0) })
+        var nextSequenceNumber = (currentRecordsByUUID.values.map(\.sequenceNumber).max() ?? 0) + 1
+        var nextQuiltLegacyID = try nextLegacyQuiltID()
+        var nextPhotoLegacyID = try nextLegacyPhotoID()
+
+        let preparedPhotos = try prepareBackupPhotos(manifest: manifest, payloadDirectory: payloadDirectory)
+
+        for quilt in manifest.quilts {
+            if let currentRecord = currentRecordsByUUID[quilt.uuid] {
+                guard resolution == .replaceExisting else { continue }
+                replace(currentRecord, with: quilt, photos: preparedPhotos[quilt.uuid] ?? [], nextPhotoLegacyID: &nextPhotoLegacyID)
+            } else {
+                let record = makeRecord(
+                    from: quilt,
+                    sequenceNumber: nextSequenceNumber,
+                    legacyID: nextQuiltLegacyID
+                )
+                nextSequenceNumber += 1
+                nextQuiltLegacyID += 1
+                context.insert(record)
+                insertPhotos(preparedPhotos[quilt.uuid] ?? [], for: record, nextPhotoLegacyID: &nextPhotoLegacyID)
             }
         }
 
-        let workingDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("QuiltLogImport-\(UUID().uuidString)", isDirectory: true)
-        let payloadDirectory = workingDirectory.appendingPathComponent("payload", isDirectory: true)
-        try FileManager.default.createDirectory(at: payloadDirectory, withIntermediateDirectories: true)
+        try context.save()
+        try fetchQuilts()
+    }
 
-        do {
-            try unzip(archive: url, to: payloadDirectory)
-            let manifestURL = payloadDirectory.appendingPathComponent("manifest.json")
-            guard FileManager.default.fileExists(atPath: manifestURL.path) else {
-                throw BackupImportError.missingManifest
-            }
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let manifest = try decoder.decode(QuiltLogBackup.self, from: Data(contentsOf: manifestURL))
-            guard manifest.formatVersion == Self.backupFormatVersion else {
-                throw BackupImportError.unsupportedFormatVersion(manifest.formatVersion)
-            }
-            try validateBackup(manifest, payloadDirectory: payloadDirectory)
-            return ImportedJSONBackup(
-                manifest: manifest,
-                payloadDirectory: payloadDirectory,
-                workingDirectory: workingDirectory
-            )
-        } catch {
-            try? FileManager.default.removeItem(at: workingDirectory)
-            throw error
+    private func readBackupManifest(from payloadDirectory: URL) throws -> QuiltLogBackup {
+        let manifestURL = payloadDirectory.appendingPathComponent("manifest.json")
+        guard FileManager.default.fileExists(atPath: manifestURL.path) else {
+            throw BackupImportError.missingManifest
         }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let manifest = try decoder.decode(QuiltLogBackup.self, from: Data(contentsOf: manifestURL))
+        guard manifest.formatVersion == Self.backupFormatVersion else {
+            throw BackupImportError.unsupportedFormatVersion(manifest.formatVersion)
+        }
+        return manifest
     }
 
     private func validateBackup(_ backup: QuiltLogBackup, payloadDirectory: URL) throws {
@@ -1001,14 +1007,17 @@ final class QuiltStore: ObservableObject {
         }
     }
 
-    private func prepareBackupPhotos(_ importedBackup: ImportedJSONBackup) throws -> [String: [PreparedBackupPhoto]] {
+    private func prepareBackupPhotos(
+        manifest: QuiltLogBackup,
+        payloadDirectory: URL
+    ) throws -> [String: [PreparedBackupPhoto]] {
         var photosByQuiltUUID: [String: [PreparedBackupPhoto]] = [:]
-        for quilt in importedBackup.manifest.quilts {
+        for quilt in manifest.quilts {
             photosByQuiltUUID[quilt.uuid] = try quilt.photos.map { photo in
                 PreparedBackupPhoto(
                     backup: photo,
-                    imageData: try readBackupData(photo.imageFilename, payloadDirectory: importedBackup.payloadDirectory),
-                    thumbnailData: try readBackupData(photo.thumbnailFilename, payloadDirectory: importedBackup.payloadDirectory)
+                    imageData: try readBackupData(photo.imageFilename, payloadDirectory: payloadDirectory),
+                    thumbnailData: try readBackupData(photo.thumbnailFilename, payloadDirectory: payloadDirectory)
                 )
             }
         }
@@ -1094,6 +1103,41 @@ final class QuiltStore: ObservableObject {
             )
             nextPhotoLegacyID += 1
             context.insert(photo)
+        }
+    }
+
+#if os(macOS)
+    private struct ImportedJSONBackup {
+        var manifest: QuiltLogBackup
+        var payloadDirectory: URL
+        var workingDirectory: URL
+    }
+
+    private func readJSONBackup(from url: URL) throws -> ImportedJSONBackup {
+        let didStartAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let workingDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuiltLogImport-\(UUID().uuidString)", isDirectory: true)
+        let payloadDirectory = workingDirectory.appendingPathComponent("payload", isDirectory: true)
+        try FileManager.default.createDirectory(at: payloadDirectory, withIntermediateDirectories: true)
+
+        do {
+            try unzip(archive: url, to: payloadDirectory)
+            let manifest = try readBackupManifest(from: payloadDirectory)
+            try validateBackup(manifest, payloadDirectory: payloadDirectory)
+            return ImportedJSONBackup(
+                manifest: manifest,
+                payloadDirectory: payloadDirectory,
+                workingDirectory: workingDirectory
+            )
+        } catch {
+            try? FileManager.default.removeItem(at: workingDirectory)
+            throw error
         }
     }
 
