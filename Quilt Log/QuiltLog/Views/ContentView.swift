@@ -176,7 +176,7 @@ struct ContentView: View {
                     selectedQuiltID: $selectedQuiltID,
                     displayMode: .constant(.gallery),
                     selectedQuilt: selectedQuilt,
-                    hideRecipients: preferences.hideRecipientsOnScreen,
+                    hideRecipients: $preferences.hideRecipientsOnScreen,
                     bottomContentInset: 88,
                     showsInspectorButton: false,
                     opensDetailsOnTap: true
@@ -329,7 +329,7 @@ struct ContentView: View {
                 selectedQuiltID: $selectedQuiltID,
                 displayMode: $displayMode,
                 selectedQuilt: selectedQuilt,
-                hideRecipients: preferences.hideRecipientsOnScreen
+                hideRecipients: $preferences.hideRecipientsOnScreen
             )
         } else if let quilt = selectedQuilt {
             QuiltDetailView(quilt: quilt)
@@ -963,7 +963,7 @@ private struct QuiltGalleryView: View {
     @Binding var selectedQuiltID: Int64?
     @Binding var displayMode: DisplayMode
     let selectedQuilt: Quilt?
-    let hideRecipients: Bool
+    @Binding var hideRecipients: Bool
     var bottomContentInset: CGFloat = 20
     var showsInspectorButton = true
     var opensDetailsOnTap = false
@@ -1056,6 +1056,12 @@ private struct QuiltGalleryView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Gallery")
                     .font(.title2.bold())
+#if os(iOS)
+                    .onTapGesture(count: 2) {
+                        hideRecipients.toggle()
+                    }
+                    .accessibilityHint(hideRecipients ? "Double tap to show recipients" : "Double tap to hide recipients")
+#endif
                 Text("\(visibleCount) quilts")
                     .font(.callout)
                     .foregroundStyle(.secondary)
