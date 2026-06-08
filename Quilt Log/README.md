@@ -1,29 +1,70 @@
 # Quilt Log
 
-Quilt Log is a macOS app for tracking quilts in an app-managed SQLite library.
+Quilt Log is a simple app for keeping track of the quilts you have made, are making, and are ready to give away. It works on Mac, iPad, and iPhone, so your quilt list can live where you actually use it: at your sewing table, on the couch, or when you are checking what you have available for a gift.
 
-## Using The App
+![Quilt Log gallery view](Documentation/Screenshots/gallery_view.png)
 
-Download the compiled app from the project releases, move it to your Applications folder, and open it like any other Mac app.
+## What You Can Track
 
-On first launch, Quilt Log creates its library in the app's Application Support folder. The live library is app-managed, and you can import or export normal `.sqlite` backups from the File menu.
+Each quilt record can include the basics you want to remember:
 
-From the app you can:
+- Quilt name and sequence number
+- Pattern, fabric, colors, and size
+- Start and finish dates
+- Status, such as planned, in progress, finished, gifted, or available
+- Recipient and gift details
+- Notes
+- Photos
 
-- Browse quilts grouped by status.
-- Search by quilt name, pattern, fabric, size, date, recipient, notes, or sequence number.
-- Add, edit, delete, and renumber quilt records.
-- Import and manage quilt photos.
-- Import and export Quilt Log SQLite backups.
-- Show the app data folder in Finder.
-- Export PDF views of the complete log, available-to-gift quilts, or a visual catalog.
-- Set the name used in PDF export titles from Quilt Log > Settings.
+![Quilt detail view](Documentation/Screenshots/detail_view.png)
 
-## Building From Source
+## Browse And Search
+
+Use the gallery to scan your quilts visually, or switch to a more compact list when you want to move through records quickly. Quilts are grouped by status, which makes it easy to see what is finished, what is still in progress, and what is available to give away.
+
+Search works across the main quilt details, including names, patterns, fabric, sizes, dates, recipients, notes, and sequence numbers.
+
+![Status tracking](Documentation/Screenshots/status_tracking.png)
+
+## Export Useful PDFs
+
+Quilt Log can create PDFs for the views people often want outside the app:
+
+- A detailed quilt log
+- A list of quilts available to gift
+- A visual catalog with photos
+
+These are useful for sharing, printing, or keeping a separate backup of your work.
+
+![Export options](Documentation/Screenshots/export_options.png)
+
+![Detailed log export](Documentation/Screenshots/export_detailed_log.png)
+
+![Available quilts export](Documentation/Screenshots/export_available_quilts.png)
+
+![Visual catalog export](Documentation/Screenshots/export_visual_catalog.png)
+
+## Backups And Sync
+
+### iCloud Synchronization By Default
+
+By default, Quilt Log stores your quilt library in your private iCloud account and synchronizes it through Apple's iCloud system. This uses your iCloud storage and is what lets the same quilt records appear on your Mac, iPad, and iPhone when you are signed in with the same Apple account and have iCloud available.
+
+Edits are saved locally first, then synchronized by iCloud when your device is online and Apple decides conditions are right. Because the library is already stored in iCloud, normal Apple account, iCloud storage, and backup settings apply.
+
+### Mac-Only Import And Export
+
+The Mac version also includes import and export tools. Use these when you want a separate archive or want a copy of your information outside the app.
+
+On the Mac, a ZIP backup can be exported that includes your quilt data and images for use outside the program.
+
+## For Developers
+
+### Building From Source
 
 Open `QuiltLog.xcodeproj` in Xcode and run the `QuiltLog` scheme.
 
-The app does not require import scripts or generated seed data. Use the File menu to import or export Quilt Log SQLite backups.
+The app does not require import scripts or generated seed data.
 
 To package a notarized app for release, place `QuiltLog.app` in the ignored `dist/` folder and run:
 
@@ -39,6 +80,6 @@ Run tests with:
 xcodebuild test -project QuiltLog.xcodeproj -scheme QuiltLog -destination 'platform=macOS' -derivedDataPath .DerivedData
 ```
 
-## License
+### License
 
 Apache-2.0

@@ -13,6 +13,9 @@ import Security
 struct QuiltLogApp: App {
     @StateObject private var runtime = QuiltRuntime()
     @StateObject private var preferences = UserPreferences()
+#if os(macOS)
+    @StateObject private var modifierKeys = ModifierKeyObserver()
+#endif
 
     init() {
     }
@@ -172,6 +175,53 @@ private struct LaunchingLibraryView: View {
 }
 
 #if os(macOS)
+@MainActor
+private final class ModifierKeyObserver: ObservableObject {
+    @Published private(set) var isOptionPressed = false
+
+    private var localMonitor: Any?
+    private var globalMonitor: Any?
+    private var pollTimer: Timer?
+
+    init() {
+        update(from: NSEvent.modifierFlags)
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            let flags = event.modifierFlags
+            Task { @MainActor in
+                self?.update(from: flags)
+            }
+            return event
+        }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            let flags = event.modifierFlags
+            Task { @MainActor in
+                self?.update(from: flags)
+            }
+        }
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard NSApp.isActive else { return }
+                let flags = NSEvent.modifierFlags
+                self?.update(from: flags)
+            }
+        }
+    }
+
+    deinit {
+        if let localMonitor {
+            NSEvent.removeMonitor(localMonitor)
+        }
+        if let globalMonitor {
+            NSEvent.removeMonitor(globalMonitor)
+        }
+        pollTimer?.invalidate()
+    }
+
+    private func update(from flags: NSEvent.ModifierFlags) {
+        isOptionPressed = flags.intersection(.deviceIndependentFlagsMask).contains(.option)
+    }
+}
+
 private extension QuiltLogApp {
     @CommandsBuilder
     var appCommands: some Commands {
@@ -184,42 +234,59 @@ private extension QuiltLogApp {
             .disabled(runtime.store == nil)
         }
         CommandGroup(after: .newItem) {
-            Button("Import Legacy SQLite Library...") {
+            Button("Import Backup...") {
                 guard let store = runtime.store else { return }
                 let panel = NSOpenPanel()
-                panel.allowedContentTypes = [.database, .data]
+                panel.allowedContentTypes = [.zip]
                 panel.allowsMultipleSelection = false
                 panel.canChooseDirectories = false
                 panel.canChooseFiles = true
-                panel.title = "Import Legacy Quilt Log SQLite Library"
-                panel.message = "Choose a legacy Quilt Log SQLite database to convert into the SwiftData library."
+                panel.title = "Import Quilt Log Backup"
+                panel.message = "Choose a Quilt Log ZIP backup."
                 panel.prompt = "Import"
 
                 guard panel.runModal() == .OK, let url = panel.url else { return }
-                let alert = NSAlert()
-                alert.alertStyle = .warning
-                alert.messageText = "Import legacy SQLite library?"
-                alert.informativeText = "Importing \"\(url.lastPathComponent)\" will add its records to the SwiftData library. Export a ZIP backup first if you want a checkpoint."
-                alert.addButton(withTitle: "Import")
-                alert.addButton(withTitle: "Cancel")
+                do {
+                    let preflight = try store.preflightJSONBackupImport(from: url)
+                    if preflight.hasOverlaps {
+                        let alert = NSAlert()
+                        alert.alertStyle = .warning
+                        alert.messageText = "Import backup with matching quilts?"
+                        alert.informativeText = Self.backupImportSummary(preflight)
+                        alert.addButton(withTitle: "Skip Existing")
+                        alert.addButton(withTitle: "Replace Existing")
+                        alert.addButton(withTitle: "Cancel")
 
-                if alert.runModal() == .alertFirstButtonReturn {
-                    Task {
-                        do {
-                            try await store.importDatabase(from: url)
-                        } catch {
-                            store.errorMessage = error.localizedDescription
+                        let response = alert.runModal()
+                        if response == .alertFirstButtonReturn {
+                            try store.importJSONBackup(from: url, resolution: .skipExisting)
+                        } else if response == .alertSecondButtonReturn {
+                            try store.importJSONBackup(from: url, resolution: .replaceExisting)
+                        }
+                    } else {
+                        let alert = NSAlert()
+                        alert.alertStyle = .informational
+                        alert.messageText = "Import Quilt Log backup?"
+                        alert.informativeText = Self.backupImportSummary(preflight)
+                        alert.addButton(withTitle: "Import")
+                        alert.addButton(withTitle: "Cancel")
+
+                        if alert.runModal() == .alertFirstButtonReturn {
+                            try store.importJSONBackup(from: url, resolution: .skipExisting)
                         }
                     }
+                } catch {
+                    store.errorMessage = error.localizedDescription
                 }
             }
             .disabled(runtime.store == nil)
 
-            Button("Export JSON Backup ZIP...") {
+            Button("Backup Locally...") {
                 guard let store = runtime.store else { return }
                 let panel = NSSavePanel()
                 panel.allowedContentTypes = [.zip]
                 panel.canCreateDirectories = true
+                panel.title = "Back Up Quilt Log Locally"
                 panel.nameFieldStringValue = "\(Self.backupFilenameDateFormatter.string(from: Date())) Quilt Log Backup.zip"
 
                 guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -231,32 +298,48 @@ private extension QuiltLogApp {
             }
             .disabled(runtime.store == nil)
 
-            Button("Show Legacy Data Folder in Finder") {
-                guard let databaseURL = runtime.store?.databaseURL else { return }
-                NSWorkspace.shared.activateFileViewerSelecting([databaseURL])
-            }
-            .disabled(runtime.store?.databaseURL == nil)
+            if modifierKeys.isOptionPressed {
+                Divider()
 
-            Divider()
+                Button("Import Legacy SQLite Library...") {
+                    guard let store = runtime.store else { return }
+                    let panel = NSOpenPanel()
+                    panel.allowedContentTypes = [.database, .data]
+                    panel.allowsMultipleSelection = false
+                    panel.canChooseDirectories = false
+                    panel.canChooseFiles = true
+                    panel.title = "Import Legacy Quilt Log SQLite Library"
+                    panel.message = "Choose a legacy Quilt Log SQLite database to convert into the SwiftData library."
+                    panel.prompt = "Import"
 
-            Button("New Empty Library...") {
-                guard let store = runtime.store else { return }
-                let alert = NSAlert()
-                alert.alertStyle = .warning
-                alert.messageText = "Create a new empty Quilt Log library?"
-                alert.informativeText = "This will replace the app's current library with an empty one. Export a backup first if you want to keep it."
-                alert.addButton(withTitle: "Create Empty Library")
-                alert.addButton(withTitle: "Cancel")
+                    guard panel.runModal() == .OK, let url = panel.url else { return }
+                    let alert = NSAlert()
+                    alert.alertStyle = .warning
+                    alert.messageText = "Import legacy SQLite library?"
+                    alert.informativeText = "Importing \"\(url.lastPathComponent)\" will add its records to the SwiftData library. Export a ZIP backup first if you want a checkpoint."
+                    alert.addButton(withTitle: "Import")
+                    alert.addButton(withTitle: "Cancel")
 
-                if alert.runModal() == .alertFirstButtonReturn {
-                    do {
-                        try store.resetDatabase()
-                    } catch {
-                        store.errorMessage = error.localizedDescription
+                    if alert.runModal() == .alertFirstButtonReturn {
+                        Task {
+                            do {
+                                try await store.importDatabase(from: url)
+                            } catch {
+                                store.errorMessage = error.localizedDescription
+                            }
+                        }
                     }
                 }
+                .disabled(runtime.store == nil)
+
+                Button("Show Legacy Data Folder in Finder") {
+                    guard let databaseURL = runtime.store?.databaseURL else { return }
+                    NSWorkspace.shared.activateFileViewerSelecting([databaseURL])
+                }
+                .disabled(runtime.store?.databaseURL == nil)
             }
-            .disabled(runtime.store == nil)
+
+            Divider()
 
             Button("Repair Numbering...") {
                 guard let store = runtime.store else { return }
@@ -278,6 +361,27 @@ private extension QuiltLogApp {
             }
             .keyboardShortcut("f", modifiers: .command)
         }
+    }
+
+    private static func backupImportSummary(_ preflight: BackupImportPreflight) -> String {
+        let exportedAt = DateFormatter.localizedString(
+            from: preflight.exportedAt,
+            dateStyle: .medium,
+            timeStyle: .short
+        )
+        var lines = [
+            "Backup exported: \(exportedAt)",
+            "\(preflight.totalQuilts) quilts and \(preflight.totalPhotos) photos in the backup.",
+            "\(preflight.newQuilts) quilts are new."
+        ]
+        if preflight.hasOverlaps {
+            lines.append("\(preflight.overlappingQuilts) quilts already exist in this library.")
+            lines.append("\(preflight.newerOverlappingQuilts) matching quilts have a newer backup update date.")
+            lines.append("New quilts will be added with new sequence numbers. Replaced quilts keep their current sequence numbers.")
+        } else {
+            lines.append("No matching quilt UUIDs were found. Imported quilts will be added with new sequence numbers.")
+        }
+        return lines.joined(separator: "\n")
     }
 }
 #endif

@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/erikoliver/quilting/blob/main/Quilt%20Log/Documentation/quilt-log-backup.schema.json",
+  "title": "Quilt Log Backup Manifest",
+  "type": "object",
+  "required": [
+    "formatVersion",
+    "exportedAt",
+    "syncBehavior",
+    "quilts"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "formatVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "syncBehavior": {
+      "type": "string"
+    },
+    "quilts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/quilt"
+      }
+    }
+  },
+  "$defs": {
+    "quilt": {
+      "type": "object",
+      "required": [
+        "uuid",
+        "legacyID",
+        "sequenceNumber",
+        "quiltName",
+        "patternName",
+        "fabricReminder",
+        "approxSize",
+        "quiltDate",
+        "status",
+        "giftedAlready",
+        "recipient",
+        "notes",
+        "createdAt",
+        "updatedAt",
+        "photos"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "type": "string"
+        },
+        "legacyID": {
+          "type": "integer"
+        },
+        "sequenceNumber": {
+          "type": "integer"
+        },
+        "quiltName": {
+          "type": "string"
+        },
+        "patternName": {
+          "type": "string"
+        },
+        "fabricReminder": {
+          "type": "string"
+        },
+        "approxSize": {
+          "type": "string"
+        },
+        "quiltDate": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "giftedAlready": {
+          "type": "boolean"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "photos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/photo"
+          }
+        }
+      }
+    },
+    "photo": {
+      "type": "object",
+      "required": [
+        "uuid",
+        "legacyID",
+        "mimeType",
+        "caption",
+        "sortOrder",
+        "isCover",
+        "createdAt",
+        "imageFilename",
+        "thumbnailFilename"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "type": "string"
+        },
+        "legacyID": {
+          "type": "integer"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "caption": {
+          "type": "string"
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "isCover": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "imageFilename": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "thumbnailFilename": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

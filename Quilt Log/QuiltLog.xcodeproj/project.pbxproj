@@ -29,6 +29,7 @@
 		010000000000000000000810 /* PDFExportPresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000811 /* PDFExportPresetTests.swift */; };
 		010000000000000000000822 /* UserPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000823 /* UserPreferencesTests.swift */; };
 		010000000000000000000824 /* QuiltStoreMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000825 /* QuiltStoreMigrationTests.swift */; };
+		010000000000000000000826 /* BackupImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000827 /* BackupImportTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +70,7 @@
 		010000000000000000000811 /* PDFExportPresetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportPresetTests.swift; sourceTree = "<group>"; };
 		010000000000000000000823 /* UserPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferencesTests.swift; sourceTree = "<group>"; };
 		010000000000000000000825 /* QuiltStoreMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltStoreMigrationTests.swift; sourceTree = "<group>"; };
+		010000000000000000000827 /* BackupImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupImportTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -183,6 +185,7 @@
 				010000000000000000000811 /* PDFExportPresetTests.swift */,
 				010000000000000000000823 /* UserPreferencesTests.swift */,
 				010000000000000000000825 /* QuiltStoreMigrationTests.swift */,
+				010000000000000000000827 /* BackupImportTests.swift */,
 			);
 			path = QuiltLogTests;
 			sourceTree = "<group>";
@@ -324,6 +327,7 @@
 				010000000000000000000810 /* PDFExportPresetTests.swift in Sources */,
 				010000000000000000000822 /* UserPreferencesTests.swift in Sources */,
 				010000000000000000000824 /* QuiltStoreMigrationTests.swift in Sources */,
+				010000000000000000000826 /* BackupImportTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -456,7 +460,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -480,7 +484,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -500,7 +504,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -524,7 +528,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.6.0;
+				MARKETING_VERSION = 0.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
