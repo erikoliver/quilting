@@ -6,8 +6,8 @@ These projects are built for personal use and have not been extensively tested. 
 
 ## Projects
 
-- `Foundations`: a macOS Swift project for foundation paper piecing template experiments.
-- `Quilt Log`: a macOS SwiftUI app for tracking quilts in a local SQLite database.
+- [Foundations](Foundations/README.md): a macOS Swift project for foundation paper piecing template experiments.
+- [Quilt Log](Quilt%20Log/README.md): a macOS SwiftUI app for tracking quilts in a local SQLite database.
 
 ## License
 
