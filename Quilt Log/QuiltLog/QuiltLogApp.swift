@@ -18,6 +18,7 @@ struct QuiltLogApp: App {
 #endif
 
     init() {
+        DiagnosticLog.recordLaunch()
     }
     
     private static let backupFilenameDateFormatter: DateFormatter = {
@@ -85,6 +86,7 @@ private final class QuiltRuntime: ObservableObject {
 
     func prepareStore() async {
         guard store == nil, !isPreparing else { return }
+        DiagnosticLog.record("runtime prepareStore begin")
         isPreparing = true
         defer { isPreparing = false }
 
@@ -96,19 +98,43 @@ private final class QuiltRuntime: ObservableObject {
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         let configuration: ModelConfiguration
         if isRunningTests {
+            DiagnosticLog.record("runtime configuration=tests cloudKit=none")
             configuration = ModelConfiguration("QuiltLogTests", schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         } else if Self.hasCloudKitEntitlement {
+            DiagnosticLog.record("runtime configuration=cloud container=iCloud.com.erikoliver.quiltlog")
+#if os(macOS)
+            CloudKitDiagnosticProbe.run(reason: "prepareStore")
+#endif
             configuration = ModelConfiguration("QuiltLogCloud", schema: schema, cloudKitDatabase: .private("iCloud.com.erikoliver.quiltlog"))
         } else {
+            DiagnosticLog.record("runtime configuration=unsigned cloudKit=none")
             configuration = ModelConfiguration("QuiltLogUnsigned", schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         }
 
         do {
             let container = try ModelContainer(for: schema, configurations: [configuration])
             modelContainer = container
-            store = QuiltStore(modelContainer: container)
+            store = QuiltStore(modelContainer: container) { [weak self] in
+                self?.retryCloudStore()
+            }
+            DiagnosticLog.record("runtime prepareStore succeeded")
         } catch {
+            DiagnosticLog.record("runtime prepareStore failed", error: error)
             launchError = "Could not open the quilt library: \(error.localizedDescription)"
+        }
+    }
+
+    private func retryCloudStore() {
+        guard !isPreparing else {
+            DiagnosticLog.record("runtime cloud retry ignored; prepare already in progress")
+            return
+        }
+        DiagnosticLog.record("runtime cloud retry requested; reopening store")
+        store = nil
+        modelContainer = nil
+        launchError = nil
+        Task {
+            await prepareStore()
         }
     }
 
@@ -120,11 +146,15 @@ private final class QuiltRuntime: ObservableObject {
                 "com.apple.developer.icloud-services" as CFString,
                 nil
               ) else {
+            DiagnosticLog.record("runtime cloudKitEntitlement missing")
             return false
         }
         let services = value as? [String] ?? []
-        return services.contains("CloudKit") || services.contains("CloudKit-Anonymous")
+        let hasEntitlement = services.contains("CloudKit") || services.contains("CloudKit-Anonymous")
+        DiagnosticLog.record("runtime cloudKitEntitlement services=\(services.joined(separator: ",")) enabled=\(hasEntitlement)")
+        return hasEntitlement
 #else
+        DiagnosticLog.record("runtime cloudKitEntitlement assumed=true non-macOS")
         return true
 #endif
     }
@@ -332,11 +362,11 @@ private extension QuiltLogApp {
                 }
                 .disabled(runtime.store == nil)
 
-                Button("Show Legacy Data Folder in Finder") {
-                    guard let databaseURL = runtime.store?.databaseURL else { return }
-                    NSWorkspace.shared.activateFileViewerSelecting([databaseURL])
+                Button("Show Library Folder in Finder") {
+                    guard let libraryFolderURL = runtime.store?.libraryFolderURL else { return }
+                    NSWorkspace.shared.activateFileViewerSelecting([libraryFolderURL])
                 }
-                .disabled(runtime.store?.databaseURL == nil)
+                .disabled(runtime.store?.libraryFolderURL == nil)
             }
 
             Divider()

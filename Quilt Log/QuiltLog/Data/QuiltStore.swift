@@ -121,7 +121,7 @@ final class QuiltStore: ObservableObject {
     @Published var searchText = ""
     @Published var errorMessage: String?
     @Published private(set) var databaseGeneration = 0
-    @Published private(set) var databaseURL: URL?
+    @Published private(set) var libraryFolderURL: URL?
     @Published private(set) var migrationProgress: MigrationProgress?
     @Published private(set) var cloudSyncStatus = CloudSyncStatus()
 
@@ -130,7 +130,10 @@ final class QuiltStore: ObservableObject {
     private var photoUUIDByID: [Int64: String] = [:]
     private var cloudKitEventObserver: NSObjectProtocol?
     private var cloudImportRefreshTask: Task<Void, Never>?
+    private var cloudKitRetryTask: Task<Void, Never>?
+    private var cloudKitQuietSettledTask: Task<Void, Never>?
     private var deferredPhotoRefreshTask: Task<Void, Never>?
+    private let onCloudKitRetryRequested: (() -> Void)?
 
     private static let thumbnailMaxSide: CGFloat = 240
     private static let thumbnailJPEGCompression: CGFloat = 0.64
@@ -138,9 +141,13 @@ final class QuiltStore: ObservableObject {
     private static let legacyDatabaseFilename = "Quilt Log.sqlite"
     private static let migrationCompleteKey = "legacySQLiteMigrationComplete"
     private static let backupFormatVersion = 1
+    private static let cloudKitRetryDelayNanoseconds: UInt64 = 30_000_000_000
+    private static let cloudKitQuietSettledDelayNanoseconds: UInt64 = 12_000_000_000
 
-    init(modelContainer: ModelContainer) {
+    init(modelContainer: ModelContainer, onCloudKitRetryRequested: (() -> Void)? = nil) {
         context = ModelContext(modelContainer)
+        self.onCloudKitRetryRequested = onCloudKitRetryRequested
+        DiagnosticLog.record("store init; registering CloudKit event observer")
         observeCloudKitEvents()
     }
 
@@ -149,6 +156,8 @@ final class QuiltStore: ObservableObject {
             NotificationCenter.default.removeObserver(cloudKitEventObserver)
         }
         cloudImportRefreshTask?.cancel()
+        cloudKitRetryTask?.cancel()
+        cloudKitQuietSettledTask?.cancel()
         deferredPhotoRefreshTask?.cancel()
     }
 
@@ -161,20 +170,27 @@ final class QuiltStore: ObservableObject {
     }
 
     func load() async {
+        DiagnosticLog.record("store load begin")
         do {
             cloudSyncStatus = CloudSyncStatus(
                 phase: .settingUp,
                 message: "Preparing iCloud library",
                 lastUpdated: Date()
             )
-            databaseURL = try Self.legacyDatabaseURL()
+            libraryFolderURL = try Self.applicationSupportDirectory()
+            DiagnosticLog.record("store libraryFolderURL=\(self.libraryFolderURL?.path ?? "nil")")
             try await migrateLegacySQLiteIfNeeded()
             try fetchQuilts(loadPhotos: false)
+            DiagnosticLog.record("store initial fetch quilts=\(self.quilts.count)")
             startDeferredPhotoRefresh()
             if quilts.isEmpty {
+                DiagnosticLog.record("store empty after initial fetch; starting CloudKit import polling")
                 startCloudImportRefreshPolling()
+            } else {
+                scheduleCloudKitQuietSettledStatus()
             }
         } catch {
+            DiagnosticLog.record("store load failed", error: error)
             errorMessage = error.localizedDescription
         }
     }
@@ -187,6 +203,7 @@ final class QuiltStore: ObservableObject {
             try fetchPhotos()
         }
         databaseGeneration += 1
+        DiagnosticLog.record("store fetchQuilts loadPhotos=\(loadPhotos) quilts=\(self.quilts.count) generation=\(self.databaseGeneration)")
     }
 
     @discardableResult
@@ -537,11 +554,13 @@ final class QuiltStore: ObservableObject {
         guard try metadataValue(for: Self.migrationCompleteKey) != "true" else { return }
         let legacyURL = try Self.legacyDatabaseURL()
         guard FileManager.default.fileExists(atPath: legacyURL.path) else { return }
+        DiagnosticLog.record("store legacy SQLite migration source=\(legacyURL.path)")
         try await importLegacySQLite(from: legacyURL)
         try setMetadataValue("true", for: Self.migrationCompleteKey)
     }
 
     private func observeCloudKitEvents() {
+        DiagnosticLog.record("cloudkit observer install")
         cloudKitEventObserver = NotificationCenter.default.addObserver(
             forName: NSPersistentCloudKitContainer.eventChangedNotification,
             object: nil,
@@ -558,6 +577,8 @@ final class QuiltStore: ObservableObject {
     }
 
     private func updateCloudSyncStatus(from event: NSPersistentCloudKitContainer.Event) {
+        cancelCloudKitQuietSettledStatus()
+        DiagnosticLog.record(Self.cloudKitEventDescription(event))
         let phase: CloudSyncStatus.Phase
         let action: String
         switch event.type {
@@ -575,62 +596,135 @@ final class QuiltStore: ObservableObject {
             action = "Cloud sync"
         }
 
-        if let error = event.error, !Self.isTransientCloudKitQueueError(error) {
+        if let error = event.error, Self.isRetryableCloudKitError(error) {
             stopCloudImportRefreshPolling()
+            scheduleCloudKitRetry(action: action, error: error, event: event)
+        } else if let error = event.error, !Self.isTransientCloudKitQueueError(error) {
+            stopCloudImportRefreshPolling()
+            cancelCloudKitRetry()
             cloudSyncStatus = CloudSyncStatus(
                 phase: .failed,
                 message: "\(action) failed: \(error.localizedDescription)",
                 lastUpdated: event.endDate ?? Date()
             )
+            DiagnosticLog.record("cloudkit status failed action=\(action) message=\(self.cloudSyncStatus.message)")
         } else if Self.isTransientCloudKitQueueError(event.error) {
             cloudSyncStatus = CloudSyncStatus(
                 phase: phase,
                 message: "\(action) already in progress",
                 lastUpdated: event.endDate ?? Date()
             )
+            DiagnosticLog.record("cloudkit status transient action=\(action) message=\(self.cloudSyncStatus.message)")
         } else if event.endDate != nil {
             stopCloudImportRefreshPolling()
+            cancelCloudKitRetry()
             cloudSyncStatus = CloudSyncStatus(
                 phase: .idle,
                 message: "iCloud synchronized",
                 lastUpdated: event.endDate
             )
+            DiagnosticLog.record("cloudkit status idle action=\(action) message=\(self.cloudSyncStatus.message)")
             refreshAfterCloudKitImportIfNeeded(event)
         } else {
+            cancelCloudKitRetry()
             cloudSyncStatus = CloudSyncStatus(
                 phase: phase,
                 message: "\(action) in progress",
                 lastUpdated: event.startDate
             )
+            DiagnosticLog.record("cloudkit status progress action=\(action) message=\(self.cloudSyncStatus.message)")
             if event.type == .import || event.type == .setup {
                 startCloudImportRefreshPolling()
             }
         }
     }
 
+    private func scheduleCloudKitRetry(
+        action: String,
+        error: Error,
+        event: NSPersistentCloudKitContainer.Event
+    ) {
+        cloudSyncStatus = CloudSyncStatus(
+            phase: .waiting,
+            message: "\(action) temporarily unavailable; retrying in 30 seconds",
+            lastUpdated: event.endDate ?? Date()
+        )
+        DiagnosticLog.record("cloudkit retry scheduled delaySeconds=30 action=\(action) error={\(DiagnosticLog.describe(error))}")
+
+        guard cloudKitRetryTask == nil else { return }
+        cloudKitRetryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.cloudKitRetryDelayNanoseconds)
+            guard let self, !Task.isCancelled else { return }
+            DiagnosticLog.record("cloudkit retry firing action=\(action)")
+            self.cloudKitRetryTask = nil
+            self.onCloudKitRetryRequested?()
+        }
+    }
+
+    private func cancelCloudKitRetry() {
+        if cloudKitRetryTask != nil {
+            DiagnosticLog.record("cloudkit retry cancel")
+        }
+        cloudKitRetryTask?.cancel()
+        cloudKitRetryTask = nil
+    }
+
+    private func scheduleCloudKitQuietSettledStatus() {
+        guard cloudKitQuietSettledTask == nil else { return }
+        DiagnosticLog.record("cloudkit quiet settled scheduled delaySeconds=12")
+        cloudKitQuietSettledTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.cloudKitQuietSettledDelayNanoseconds)
+            guard let self, !Task.isCancelled else { return }
+            self.cloudKitQuietSettledTask = nil
+            guard self.cloudSyncStatus.phase == .settingUp || self.cloudSyncStatus.phase == .waiting else {
+                DiagnosticLog.record("cloudkit quiet settled skipped phase=\(self.cloudSyncStatus.phase)")
+                return
+            }
+            self.cloudSyncStatus = CloudSyncStatus(
+                phase: .idle,
+                message: "iCloud ready",
+                lastUpdated: Date()
+            )
+            DiagnosticLog.record("cloudkit quiet settled status idle message=\(self.cloudSyncStatus.message)")
+        }
+    }
+
+    private func cancelCloudKitQuietSettledStatus() {
+        if cloudKitQuietSettledTask != nil {
+            DiagnosticLog.record("cloudkit quiet settled cancel")
+        }
+        cloudKitQuietSettledTask?.cancel()
+        cloudKitQuietSettledTask = nil
+    }
+
     private func refreshAfterCloudKitImportIfNeeded(_ event: NSPersistentCloudKitContainer.Event) {
         guard event.type == .import else { return }
+        DiagnosticLog.record("cloudkit import completed; refreshing local rows")
         do {
             try fetchQuilts(loadPhotos: false)
             startDeferredPhotoRefresh()
         } catch {
+            DiagnosticLog.record("cloudkit import refresh failed", error: error)
             errorMessage = error.localizedDescription
         }
     }
 
     private func startCloudImportRefreshPolling() {
         guard cloudImportRefreshTask == nil else { return }
+        DiagnosticLog.record("cloudkit import polling start")
         cloudImportRefreshTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 guard let self, !Task.isCancelled else { return }
                 do {
                     try self.fetchQuilts(loadPhotos: false)
+                    DiagnosticLog.record("cloudkit import polling tick quilts=\(self.quilts.count)")
                     if !self.quilts.isEmpty {
                         self.startDeferredPhotoRefresh()
                         self.stopCloudImportRefreshPolling()
                     }
                 } catch {
+                    DiagnosticLog.record("cloudkit import polling failed", error: error)
                     self.errorMessage = error.localizedDescription
                     self.stopCloudImportRefreshPolling()
                 }
@@ -639,6 +733,9 @@ final class QuiltStore: ObservableObject {
     }
 
     private func stopCloudImportRefreshPolling() {
+        if cloudImportRefreshTask != nil {
+            DiagnosticLog.record("cloudkit import polling stop")
+        }
         cloudImportRefreshTask?.cancel()
         cloudImportRefreshTask = nil
     }
@@ -660,6 +757,35 @@ final class QuiltStore: ObservableObject {
     private static func isTransientCloudKitQueueError(_ error: Error?) -> Bool {
         guard let error = error as NSError? else { return false }
         return error.domain == NSCocoaErrorDomain && error.code == 134417
+    }
+
+    private static func isRetryableCloudKitError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        guard nsError.domain == "CKErrorDomain" else { return false }
+        return [3, 4, 6, 7, 36].contains(nsError.code)
+    }
+
+    private static func cloudKitEventDescription(_ event: NSPersistentCloudKitContainer.Event) -> String {
+        var parts = [
+            "cloudkit event type=\(cloudKitEventTypeName(event.type))",
+            "start=\(DiagnosticLog.describe(event.startDate))",
+            "end=\(event.endDate.map(DiagnosticLog.describe) ?? "nil")"
+        ]
+        if let error = event.error {
+            parts.append("error={\(DiagnosticLog.describe(error))}")
+        } else {
+            parts.append("error=nil")
+        }
+        return parts.joined(separator: " ")
+    }
+
+    private static func cloudKitEventTypeName(_ type: NSPersistentCloudKitContainer.EventType) -> String {
+        switch type {
+        case .setup: "setup"
+        case .import: "import"
+        case .export: "export"
+        @unknown default: "unknown"
+        }
     }
 
     private func importLegacySQLite(from url: URL) async throws {

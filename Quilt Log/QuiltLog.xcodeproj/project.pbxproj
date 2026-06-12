@@ -27,6 +27,8 @@
 		010000000000000000000012 /* MigrationProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000114 /* MigrationProgressView.swift */; };
 		010000000000000000000013 /* PlatformSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000115 /* PlatformSupport.swift */; };
 		010000000000000000000014 /* SampleData in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000118 /* SampleData */; };
+		010000000000000000000015 /* DiagnosticLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000119 /* DiagnosticLog.swift */; };
+		010000000000000000000016 /* CloudKitDiagnosticProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000011A /* CloudKitDiagnosticProbe.swift */; };
 		010000000000000000000810 /* PDFExportPresetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000811 /* PDFExportPresetTests.swift */; };
 		010000000000000000000822 /* UserPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000823 /* UserPreferencesTests.swift */; };
 		010000000000000000000824 /* QuiltStoreMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000825 /* QuiltStoreMigrationTests.swift */; };
@@ -70,6 +72,8 @@
 		010000000000000000000116 /* QuiltLog-iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "QuiltLog-iOS.entitlements"; sourceTree = "<group>"; };
 		010000000000000000000117 /* QuiltLog-iOS-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "QuiltLog-iOS-Info.plist"; sourceTree = "<group>"; };
 		010000000000000000000118 /* SampleData */ = {isa = PBXFileReference; lastKnownFileType = folder; path = SampleData; sourceTree = "<group>"; };
+		010000000000000000000119 /* DiagnosticLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLog.swift; sourceTree = "<group>"; };
+		01000000000000000000011A /* CloudKitDiagnosticProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitDiagnosticProbe.swift; sourceTree = "<group>"; };
 		010000000000000000000811 /* PDFExportPresetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFExportPresetTests.swift; sourceTree = "<group>"; };
 		010000000000000000000823 /* UserPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferencesTests.swift; sourceTree = "<group>"; };
 		010000000000000000000825 /* QuiltStoreMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltStoreMigrationTests.swift; sourceTree = "<group>"; };
@@ -111,6 +115,8 @@
 			children = (
 				010000000000000000000101 /* QuiltLogApp.swift */,
 				010000000000000000000115 /* PlatformSupport.swift */,
+				010000000000000000000119 /* DiagnosticLog.swift */,
+				01000000000000000000011A /* CloudKitDiagnosticProbe.swift */,
 				010000000000000000000109 /* Assets.xcassets */,
 				010000000000000000000118 /* SampleData */,
 				01000000000000000000010E /* QuiltLog.entitlements */,
@@ -324,6 +330,8 @@
 				010000000000000000000011 /* BackupModels.swift in Sources */,
 				010000000000000000000012 /* MigrationProgressView.swift in Sources */,
 				010000000000000000000013 /* PlatformSupport.swift in Sources */,
+				010000000000000000000015 /* DiagnosticLog.swift in Sources */,
+				010000000000000000000016 /* CloudKitDiagnosticProbe.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -468,7 +476,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -482,9 +490,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIBackgroundModes = (
-					"remote-notification",
-				);
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -492,7 +498,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.8.0;
+				MARKETING_VERSION = 0.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -512,7 +518,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = PM34H2JW88;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -526,9 +532,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIBackgroundModes = (
-					"remote-notification",
-				);
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -536,7 +540,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.8.0;
+				MARKETING_VERSION = 0.8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erikoliver.quiltlog;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
