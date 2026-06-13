@@ -1,54 +1,112 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="appBackdrop" x1="160" y1="80" x2="860" y2="940" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#F8F1E7"/>
-      <stop offset="1" stop-color="#D7EFE9"/>
+    <linearGradient id="backdrop" x1="148" y1="88" x2="876" y2="932" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FCF8EF"/>
+      <stop offset="0.45" stop-color="#F0F7F2"/>
+      <stop offset="1" stop-color="#BDE6E1"/>
     </linearGradient>
-    <linearGradient id="binding" x1="276" y1="172" x2="754" y2="904" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#F0E2D1"/>
+    <radialGradient id="lightBloom" cx="310" cy="174" r="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.86"/>
+      <stop offset="0.44" stop-color="#FFFFFF" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glassPanel" x1="244" y1="146" x2="780" y2="842" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.96"/>
+      <stop offset="0.5" stop-color="#F9F4EA" stop-opacity="0.86"/>
+      <stop offset="1" stop-color="#DFF4EF" stop-opacity="0.82"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#17313A" flood-opacity="0.28"/>
+    <linearGradient id="glassEdge" x1="278" y1="164" x2="774" y2="840" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.96"/>
+      <stop offset="0.48" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#559B9A" stop-opacity="0.36"/>
+    </linearGradient>
+    <linearGradient id="quiltWarm" x1="278" y1="218" x2="736" y2="710" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFDF6"/>
+      <stop offset="1" stop-color="#EFE5D7"/>
+    </linearGradient>
+    <linearGradient id="starFill" x1="470" y1="354" x2="562" y2="564" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD86B"/>
+      <stop offset="1" stop-color="#F4AA22"/>
+    </linearGradient>
+    <filter id="ambientShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="36" stdDeviation="34" flood-color="#164252" flood-opacity="0.2"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#164252" flood-opacity="0.14"/>
     </filter>
+    <filter id="softInset" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="10" result="blur"/>
+      <feOffset dy="4" result="offset"/>
+      <feComposite in="offset" in2="SourceAlpha" operator="out" result="inner"/>
+      <feColorMatrix in="inner" type="matrix" values="0 0 0 0 0.18 0 0 0 0 0.42 0 0 0 0 0.45 0 0 0 0.18 0"/>
+      <feComposite in2="SourceGraphic" operator="over"/>
+    </filter>
+    <clipPath id="iconShape">
+      <rect width="1024" height="1024" rx="226"/>
+    </clipPath>
+    <clipPath id="quiltClip">
+      <rect x="286" y="224" width="452" height="452" rx="36"/>
+    </clipPath>
   </defs>
 
-  <rect width="1024" height="1024" rx="220" fill="url(#appBackdrop)"/>
-  <path d="M190 764c78 68 190 106 324 106 142 0 250-42 325-113v66c0 72-144 130-322 130S190 895 190 823v-59Z" fill="#1A6F74" opacity="0.14"/>
+  <g clip-path="url(#iconShape)">
+    <rect width="1024" height="1024" fill="url(#backdrop)"/>
+    <rect width="1024" height="1024" fill="url(#lightBloom)"/>
+    <path d="M122 740c118 86 246 130 386 130 150 0 284-50 400-150v304H122Z" fill="#74C0BD" opacity="0.16"/>
+    <path d="M82 198c182 38 354 36 516-8 122-33 242-40 360-20v-188H82Z" fill="#FFFFFF" opacity="0.34"/>
+  </g>
 
-  <g filter="url(#shadow)">
-    <rect x="204" y="142" width="616" height="716" rx="72" fill="url(#binding)"/>
-    <rect x="250" y="188" width="524" height="624" rx="38" fill="#243C49"/>
-    <rect x="286" y="224" width="452" height="452" rx="22" fill="#F9F6EF"/>
+  <g filter="url(#ambientShadow)">
+    <rect x="200" y="132" width="624" height="742" rx="120" fill="url(#glassPanel)"/>
+    <rect x="213" y="145" width="598" height="716" rx="108" fill="none" stroke="url(#glassEdge)" stroke-width="24"/>
+    <path d="M256 178c68-44 190-50 364-18 92 17 148 18 168 2-32 82-92 122-180 121-55 0-126-13-214-38-66-18-112-17-138 3Z" fill="#FFFFFF" opacity="0.32"/>
+    <path d="M242 712c76 56 169 86 280 88 118 2 206-30 264-94v70c0 54-118 100-274 100s-270-46-270-100Z" fill="#3D9F9C" opacity="0.14"/>
 
-    <g stroke="#F9F6EF" stroke-width="16" stroke-linejoin="round">
-      <path d="M286 224h452v452H286z" fill="none"/>
-      <path d="M512 224v452M286 450h452M399 224v452M625 224v452M286 337h452M286 563h452"/>
+    <g filter="url(#softInset)">
+      <rect x="256" y="194" width="512" height="512" rx="54" fill="#173A47" opacity="0.72"/>
+      <rect x="286" y="224" width="452" height="452" rx="36" fill="url(#quiltWarm)"/>
+
+      <g clip-path="url(#quiltClip)">
+        <rect x="286" y="224" width="452" height="452" fill="#FBF8F1"/>
+        <path d="M286 224h226L399 337Z" fill="#EE5D50"/>
+        <path d="M512 224h226L625 337Z" fill="#F7BD3D"/>
+        <path d="M286 224v226l113-113Z" fill="#3299A8"/>
+        <path d="M738 224v226L625 337Z" fill="#5D8558"/>
+        <path d="M399 337 512 224l113 113-113 113Z" fill="#FFFFFF"/>
+        <path d="M399 337 286 450l113 113 113-113Z" fill="#F5B63E"/>
+        <path d="M625 337 738 450 625 563 512 450Z" fill="#E95A4F"/>
+        <path d="M399 563 512 450l113 113-113 113Z" fill="#3094A5"/>
+        <path d="M286 450 512 676 738 450v226H286Z" fill="#F8F3EA"/>
+        <path d="M286 224h452v452H286Z" fill="#FFFFFF" opacity="0.12"/>
+      </g>
+
+      <g fill="none" stroke="#FFF9EF" stroke-linejoin="round" stroke-width="12" opacity="0.88">
+        <path d="M286 224h452v452H286z"/>
+        <path d="M512 224v452M286 450h452M399 224v452M625 224v452M286 337h452M286 563h452"/>
+      </g>
+      <rect x="286" y="224" width="452" height="452" rx="36" fill="none" stroke="#173A47" stroke-width="12" opacity="0.38"/>
+
+      <circle cx="512" cy="450" r="96" fill="#FFFDF7" opacity="0.94"/>
+      <path d="M512 326 548 414 636 450 548 486 512 574 476 486 388 450 476 414Z" fill="#173A47"/>
+      <path d="M512 372 535 427 590 450 535 473 512 528 489 473 434 450 489 427Z" fill="url(#starFill)"/>
+      <path d="M446 432 512 403 578 432 512 460Z" fill="#FFE08B" opacity="0.48"/>
     </g>
 
-    <path d="M286 224h226L399 337 286 224Z" fill="#E75B4D"/>
-    <path d="M512 224h226L625 337 512 224Z" fill="#F3B33E"/>
-    <path d="M286 224v226l113-113-113-113Z" fill="#2E8DA0"/>
-    <path d="M738 224v226L625 337l113-113Z" fill="#577A54"/>
-
-    <path d="M399 337 512 224l113 113-113 113-113-113Z" fill="#FFFFFF"/>
-    <path d="M399 337 286 450l113 113 113-113-113-113Z" fill="#F3B33E"/>
-    <path d="M625 337 738 450 625 563 512 450l113-113Z" fill="#E75B4D"/>
-    <path d="M399 563 512 450l113 113-113 113-113-113Z" fill="#2E8DA0"/>
-
-    <path d="M512 450m-86 0a86 86 0 1 0 172 0a86 86 0 1 0-172 0" fill="#F9F6EF"/>
-    <path d="M512 342 544 418 621 450 544 482 512 558 480 482 403 450 480 418Z" fill="#243C49"/>
-    <path d="M512 384 532 430 578 450 532 470 512 516 492 470 446 450 492 430Z" fill="#F3B33E"/>
-
-    <g fill="none" stroke="#CBBBA6" stroke-linecap="round" stroke-width="14">
-      <path d="M316 728h316"/>
-      <path d="M316 768h244"/>
+    <g fill="none" stroke-linecap="round">
+      <path d="M318 742h282" stroke="#D3BE9B" stroke-width="18"/>
+      <path d="M318 786h218" stroke="#D3BE9B" stroke-width="18"/>
+      <path d="M318 742h282" stroke="#FFFFFF" stroke-width="5" opacity="0.36"/>
+      <path d="M318 786h218" stroke="#FFFFFF" stroke-width="5" opacity="0.36"/>
     </g>
-    <g fill="#E75B4D">
-      <circle cx="678" cy="728" r="15"/>
-      <circle cx="722" cy="728" r="15"/>
-      <circle cx="678" cy="768" r="15"/>
-      <circle cx="722" cy="768" r="15"/>
+    <g fill="#E85B4F">
+      <circle cx="674" cy="742" r="17"/>
+      <circle cx="724" cy="742" r="17"/>
+      <circle cx="674" cy="786" r="17"/>
+      <circle cx="724" cy="786" r="17"/>
+    </g>
+    <g fill="#FFFFFF" opacity="0.24">
+      <circle cx="668" cy="736" r="6"/>
+      <circle cx="718" cy="736" r="6"/>
+      <circle cx="668" cy="780" r="6"/>
+      <circle cx="718" cy="780" r="6"/>
     </g>
   </g>
 </svg>
