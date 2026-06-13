@@ -775,6 +775,8 @@ final class QuiltStore: ObservableObject {
                 return true
             }
             if nsError.code == CKError.partialFailure.rawValue {
+                // Partial failure is only retryable when the underlying item errors are retryable.
+                // Invalid-arguments partials often mean the production CloudKit schema needs promotion.
                 return partialCloudKitErrors(in: nsError)
                     .contains(where: isRetryableCloudKitError)
             }
@@ -804,10 +806,24 @@ final class QuiltStore: ObservableObject {
         ]
         if let error = event.error {
             parts.append("error={\(DiagnosticLog.describe(error))}")
+            if isCloudKitPartialFailure(error) {
+                parts.append("hint=CKErrorDomain code=2 is a partial failure wrapper; for archived/notarized builds, check CloudKit Dashboard and promote the development schema to production if record types such as CD_QuiltRecord, CD_QuiltPhotoRecord, or CD_QuiltLogMetadata are missing")
+            }
         } else {
             parts.append("error=nil")
         }
         return parts.joined(separator: " ")
+    }
+
+    private static func isCloudKitPartialFailure(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if nsError.domain == CKError.errorDomain && nsError.code == CKError.partialFailure.rawValue {
+            return true
+        }
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? Error {
+            return isCloudKitPartialFailure(underlying)
+        }
+        return false
     }
 
     private static func cloudKitEventTypeName(_ type: NSPersistentCloudKitContainer.EventType) -> String {

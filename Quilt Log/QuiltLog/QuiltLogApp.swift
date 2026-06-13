@@ -67,6 +67,9 @@ struct QuiltLogApp: App {
                         }
                 }
             }
+#if os(macOS)
+            .background(WindowFrameKeeper())
+#endif
         }
 #if os(macOS)
         .commands {
@@ -249,6 +252,131 @@ private final class ModifierKeyObserver: ObservableObject {
 
     private func update(from flags: NSEvent.ModifierFlags) {
         isOptionPressed = flags.intersection(.deviceIndependentFlagsMask).contains(.option)
+    }
+}
+
+private struct WindowFrameKeeper: NSViewRepresentable {
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            context.coordinator.configure(window: view.window)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            context.coordinator.configure(window: nsView.window)
+        }
+    }
+
+    @MainActor
+    final class Coordinator {
+        private static let frameDefaultsKey = "QuiltLogMainWindowFrame"
+        private static let autosaveName = "QuiltLogMainWindow"
+
+        private weak var configuredWindow: NSWindow?
+        private var observers: [NSObjectProtocol] = []
+        private var isRestoringFrame = false
+
+        deinit {
+            for observer in observers {
+                NotificationCenter.default.removeObserver(observer)
+            }
+        }
+
+        func configure(window: NSWindow?) {
+            guard let window, configuredWindow !== window else { return }
+            for observer in observers {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            observers = []
+            configuredWindow = window
+            window.setFrameAutosaveName(Self.autosaveName)
+            restoreSavedFrame(window)
+            clampToVisibleScreen(window)
+            saveFrame(window)
+            observe(window)
+        }
+
+        private func observe(_ window: NSWindow) {
+            let notifications: [NSNotification.Name] = [
+                NSWindow.didMoveNotification,
+                NSWindow.didResizeNotification,
+                NSWindow.didEndLiveResizeNotification
+            ]
+            observers = notifications.map { name in
+                NotificationCenter.default.addObserver(
+                    forName: name,
+                    object: window,
+                    queue: .main
+                ) { [weak self, weak window] _ in
+                    guard let self, let window else { return }
+                    Task { @MainActor in
+                        guard !self.isRestoringFrame else { return }
+                        self.saveFrame(window)
+                    }
+                }
+            }
+        }
+
+        private func restoreSavedFrame(_ window: NSWindow) {
+            guard let frameString = UserDefaults.standard.string(forKey: Self.frameDefaultsKey) else { return }
+            let frame = NSRectFromString(frameString)
+            guard !frame.isEmpty else { return }
+
+            isRestoringFrame = true
+            window.setFrame(frame, display: false)
+            isRestoringFrame = false
+            let frameDescription = describe(frame)
+            DiagnosticLog.record("window frame restored frame=\(frameDescription)")
+        }
+
+        private func saveFrame(_ window: NSWindow) {
+            UserDefaults.standard.set(NSStringFromRect(window.frame), forKey: Self.frameDefaultsKey)
+        }
+
+        private func clampToVisibleScreen(_ window: NSWindow) {
+            let screen = window.screen
+                ?? NSScreen.screens.first(where: { $0.visibleFrame.intersects(window.frame) })
+                ?? NSScreen.main
+            guard let screen else { return }
+
+            let visibleFrame = screen.visibleFrame
+            var frame = window.frame
+
+            frame.size.width = min(frame.width, visibleFrame.width)
+            frame.size.height = min(frame.height, visibleFrame.height)
+
+            if frame.maxX > visibleFrame.maxX {
+                frame.origin.x = visibleFrame.maxX - frame.width
+            }
+            if frame.minX < visibleFrame.minX {
+                frame.origin.x = visibleFrame.minX
+            }
+            if frame.maxY > visibleFrame.maxY {
+                frame.origin.y = visibleFrame.maxY - frame.height
+            }
+            if frame.minY < visibleFrame.minY {
+                frame.origin.y = visibleFrame.minY
+            }
+
+            if frame != window.frame {
+                let originalFrameDescription = describe(window.frame)
+                let clampedFrameDescription = describe(frame)
+                let screenFrameDescription = describe(visibleFrame)
+                DiagnosticLog.record("window frame clamped from=\(originalFrameDescription) to=\(clampedFrameDescription) screen=\(screenFrameDescription)")
+                window.setFrame(frame, display: true)
+            }
+        }
+
+        private func describe(_ frame: NSRect) -> String {
+            "x=\(Int(frame.origin.x)) y=\(Int(frame.origin.y)) w=\(Int(frame.width)) h=\(Int(frame.height))"
+        }
     }
 }
 
