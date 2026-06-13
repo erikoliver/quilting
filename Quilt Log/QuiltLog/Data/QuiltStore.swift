@@ -3,6 +3,7 @@
 
 import CoreGraphics
 import CoreData
+import CloudKit
 import Foundation
 import ImageIO
 import SQLite3
@@ -761,8 +762,38 @@ final class QuiltStore: ObservableObject {
 
     private static func isRetryableCloudKitError(_ error: Error) -> Bool {
         let nsError = error as NSError
-        guard nsError.domain == "CKErrorDomain" else { return false }
-        return [3, 4, 6, 7, 36].contains(nsError.code)
+        if nsError.domain == CKError.errorDomain {
+            let retryableCodes = [
+                CKError.networkUnavailable.rawValue,
+                CKError.networkFailure.rawValue,
+                CKError.serviceUnavailable.rawValue,
+                CKError.requestRateLimited.rawValue,
+                CKError.zoneBusy.rawValue,
+                CKError.accountTemporarilyUnavailable.rawValue
+            ]
+            if retryableCodes.contains(nsError.code) {
+                return true
+            }
+            if nsError.code == CKError.partialFailure.rawValue {
+                return partialCloudKitErrors(in: nsError)
+                    .contains(where: isRetryableCloudKitError)
+            }
+            return false
+        }
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? Error {
+            return isRetryableCloudKitError(underlying)
+        }
+        return false
+    }
+
+    private static func partialCloudKitErrors(in error: NSError) -> [Error] {
+        if let partialErrors = error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: Error] {
+            return Array(partialErrors.values)
+        }
+        if let partialErrors = error.userInfo["CKPartialErrors"] as? [AnyHashable: Error] {
+            return Array(partialErrors.values)
+        }
+        return []
     }
 
     private static func cloudKitEventDescription(_ event: NSPersistentCloudKitContainer.Event) -> String {

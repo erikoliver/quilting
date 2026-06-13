@@ -1,6 +1,7 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
+import CloudKit
 import Foundation
 
 enum DiagnosticLog {
@@ -36,6 +37,10 @@ enum DiagnosticLog {
     }
 
     static func describe(_ error: Error) -> String {
+        describe(error as NSError, depth: 0)
+    }
+
+    private static func describe(_ error: NSError, depth: Int) -> String {
         let nsError = error as NSError
         var parts = [
             "domain=\(nsError.domain)",
@@ -45,8 +50,36 @@ enum DiagnosticLog {
         if let reason = nsError.localizedFailureReason {
             parts.append("reason=\(reason)")
         }
-        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
-            parts.append("underlying={domain=\(underlying.domain), code=\(underlying.code), description=\(underlying.localizedDescription)}")
+        if let suggestion = nsError.localizedRecoverySuggestion {
+            parts.append("suggestion=\(suggestion)")
+        }
+        if let debugDescription = nsError.userInfo[NSDebugDescriptionErrorKey] as? String {
+            parts.append("debugDescription=\(debugDescription)")
+        }
+        if let cloudKitDescription = nsError.userInfo["CKErrorDescription"] as? String {
+            parts.append("cloudKitDescription=\(cloudKitDescription)")
+        }
+        if let retryAfter = nsError.userInfo[CKErrorRetryAfterKey] as? TimeInterval {
+            parts.append("retryAfterSeconds=\(retryAfter)")
+        }
+        if let partialErrors = nsError.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: Error] {
+            parts.append("partialErrors={\(describe(partialErrors, depth: depth + 1))}")
+        }
+        if depth < 2, let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts.append("underlying={\(describe(underlying, depth: depth + 1))}")
+        }
+        return parts.joined(separator: " ")
+    }
+
+    private static func describe(_ partialErrors: [AnyHashable: Error], depth: Int) -> String {
+        let limit = 8
+        let descriptions = partialErrors.prefix(limit).map { key, error in
+            "\(redacted(String(describing: key)))={\(describe(error as NSError, depth: depth))}"
+        }
+        var parts = ["count=\(partialErrors.count)"]
+        parts.append(contentsOf: descriptions)
+        if partialErrors.count > limit {
+            parts.append("omitted=\(partialErrors.count - limit)")
         }
         return parts.joined(separator: " ")
     }
@@ -79,6 +112,15 @@ enum DiagnosticLog {
 
     private static func timestamp() -> String {
         timestampFormatter.string(from: Date())
+    }
+
+    private static func redacted(_ value: String) -> String {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in value.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return String(hash, radix: 16)
     }
 
     private static let timestampFormatter: ISO8601DateFormatter = {
