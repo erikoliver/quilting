@@ -1256,9 +1256,16 @@ private struct GalleryInspector: View {
 
                     metadata("Status", quilt.status)
                     metadata("Size", quilt.approxSize)
-                    metadata("Date", quilt.quiltDate)
+                    metadata("Started", quilt.startedDate)
+                    metadata("Piecing Completed", quilt.quiltDate)
+                    metadata("Quilting Completed", quilt.quiltingCompletedDate)
+                    metadata("Designer", quilt.designerName)
                     metadata("Pattern", quilt.patternName)
+                    metadata("Fabric Store", quilt.fabricStore)
+                    metadata("Fabric Line", quilt.fabricLine)
                     metadata("Fabric", quilt.fabricReminder)
+                    metadata("Quilter", quilt.quilterName)
+                    metadata("Quilting Pattern", quilt.quiltingPatternName)
                     if !hideRecipient {
                         metadata("Recipient", quilt.recipient)
                     }

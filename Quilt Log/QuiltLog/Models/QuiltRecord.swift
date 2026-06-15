@@ -10,10 +10,17 @@ final class QuiltRecord {
     var legacyID: Int64 = 0
     var sequenceNumber: Int = 0
     var quiltName: String = ""
+    var startedDate: String = ""
+    var designerName: String = ""
     var patternName: String = ""
+    var fabricStore: String = ""
+    var fabricLine: String = ""
     var fabricReminder: String = ""
     var approxSize: String = ""
     var quiltDate: String = ""
+    var quiltingCompletedDate: String = ""
+    var quilterName: String = ""
+    var quiltingPatternName: String = ""
     var status: String = QuiltStatus.inProgress.rawValue
     var giftedAlready: Bool = false
     var recipient: String = ""
@@ -27,10 +34,17 @@ final class QuiltRecord {
         legacyID: Int64 = 0,
         sequenceNumber: Int,
         quiltName: String,
+        startedDate: String = "",
+        designerName: String = "",
         patternName: String = "",
+        fabricStore: String = "",
+        fabricLine: String = "",
         fabricReminder: String = "",
         approxSize: String = "",
         quiltDate: String = "",
+        quiltingCompletedDate: String = "",
+        quilterName: String = "",
+        quiltingPatternName: String = "",
         status: String = QuiltStatus.inProgress.rawValue,
         giftedAlready: Bool = false,
         recipient: String = "",
@@ -42,10 +56,17 @@ final class QuiltRecord {
         self.legacyID = legacyID
         self.sequenceNumber = sequenceNumber
         self.quiltName = quiltName
+        self.startedDate = startedDate
+        self.designerName = designerName
         self.patternName = patternName
+        self.fabricStore = fabricStore
+        self.fabricLine = fabricLine
         self.fabricReminder = fabricReminder
         self.approxSize = approxSize
         self.quiltDate = quiltDate
+        self.quiltingCompletedDate = quiltingCompletedDate
+        self.quilterName = quilterName
+        self.quiltingPatternName = quiltingPatternName
         self.status = status
         self.giftedAlready = giftedAlready
         self.recipient = recipient
@@ -116,4 +137,3 @@ enum QuiltRecordID {
         return Int64(hash & 0x7fff_ffff_ffff_ffff)
     }
 }
-

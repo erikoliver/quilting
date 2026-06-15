@@ -14,7 +14,7 @@ Photo file paths in `manifest.json` are relative to the ZIP root, such as `image
 
 ## Format Version
 
-Current format version: `1`
+Current format version: `2`
 
 The manifest includes:
 
@@ -24,6 +24,8 @@ The manifest includes:
 - `quilts`: exported quilt records.
 
 Each quilt includes its stable `uuid`, user-facing fields, `createdAt`, `updatedAt`, and any photos. Each photo includes its stable `uuid`, metadata, and optional paths to original and thumbnail image files.
+
+Version 2 adds structured quilt detail fields for started date, designer, fabric store, fabric line, quilting completed date, quilter, and quilting pattern. The app can still import version 1 backups; fields introduced in version 2 default to empty strings when importing an older backup.
 
 ## Identity And Import Behavior
 
