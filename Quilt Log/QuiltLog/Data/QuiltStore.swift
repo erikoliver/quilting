@@ -141,7 +141,7 @@ final class QuiltStore: ObservableObject {
     private static let applicationSupportFolderName = "Quilt Log"
     private static let legacyDatabaseFilename = "Quilt Log.sqlite"
     private static let migrationCompleteKey = "legacySQLiteMigrationComplete"
-    private static let backupFormatVersion = 1
+    private static let backupFormatVersion = 2
     private static let cloudKitRetryDelayNanoseconds: UInt64 = 30_000_000_000
     private static let cloudKitQuietSettledDelayNanoseconds: UInt64 = 12_000_000_000
 
@@ -927,10 +927,17 @@ final class QuiltStore: ObservableObject {
         [
             String(quilt.sequenceNumber),
             quilt.quiltName,
+            quilt.startedDate,
+            quilt.designerName,
             quilt.patternName,
+            quilt.fabricStore,
+            quilt.fabricLine,
             quilt.fabricReminder,
             quilt.approxSize,
             quilt.quiltDate,
+            quilt.quiltingCompletedDate,
+            quilt.quilterName,
+            quilt.quiltingPatternName,
             quilt.status,
             quilt.giftedAlready ? "gifted gifted already yes" : "not gifted no",
             quilt.recipient,
@@ -979,10 +986,17 @@ final class QuiltStore: ObservableObject {
     private func update(_ record: QuiltRecord, from quilt: Quilt) {
         record.sequenceNumber = quilt.sequenceNumber
         record.quiltName = quilt.quiltName
+        record.startedDate = quilt.startedDate
+        record.designerName = quilt.designerName
         record.patternName = quilt.patternName
+        record.fabricStore = quilt.fabricStore
+        record.fabricLine = quilt.fabricLine
         record.fabricReminder = quilt.fabricReminder
         record.approxSize = quilt.approxSize
         record.quiltDate = quilt.quiltDate
+        record.quiltingCompletedDate = quilt.quiltingCompletedDate
+        record.quilterName = quilt.quilterName
+        record.quiltingPatternName = quilt.quiltingPatternName
         record.status = quilt.status
         record.giftedAlready = quilt.giftedAlready
         record.recipient = quilt.recipient
@@ -1070,10 +1084,17 @@ final class QuiltStore: ObservableObject {
                 legacyID: quilt.legacyID,
                 sequenceNumber: quilt.sequenceNumber,
                 quiltName: quilt.quiltName,
+                startedDate: quilt.startedDate,
+                designerName: quilt.designerName,
                 patternName: quilt.patternName,
+                fabricStore: quilt.fabricStore,
+                fabricLine: quilt.fabricLine,
                 fabricReminder: quilt.fabricReminder,
                 approxSize: quilt.approxSize,
                 quiltDate: quilt.quiltDate,
+                quiltingCompletedDate: quilt.quiltingCompletedDate,
+                quilterName: quilt.quilterName,
+                quiltingPatternName: quilt.quiltingPatternName,
                 status: quilt.status,
                 giftedAlready: quilt.giftedAlready,
                 recipient: quilt.recipient,
@@ -1148,7 +1169,7 @@ final class QuiltStore: ObservableObject {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let manifest = try decoder.decode(QuiltLogBackup.self, from: Data(contentsOf: manifestURL))
-        guard manifest.formatVersion == Self.backupFormatVersion else {
+        guard manifest.formatVersion == 1 || manifest.formatVersion == Self.backupFormatVersion else {
             throw BackupImportError.unsupportedFormatVersion(manifest.formatVersion)
         }
         return manifest
@@ -1216,10 +1237,17 @@ final class QuiltStore: ObservableObject {
             legacyID: legacyID,
             sequenceNumber: sequenceNumber,
             quiltName: backup.quiltName,
+            startedDate: backup.startedDate,
+            designerName: backup.designerName,
             patternName: backup.patternName,
+            fabricStore: backup.fabricStore,
+            fabricLine: backup.fabricLine,
             fabricReminder: backup.fabricReminder,
             approxSize: backup.approxSize,
             quiltDate: backup.quiltDate,
+            quiltingCompletedDate: backup.quiltingCompletedDate,
+            quilterName: backup.quilterName,
+            quiltingPatternName: backup.quiltingPatternName,
             status: backup.status,
             giftedAlready: backup.giftedAlready,
             recipient: backup.recipient,
@@ -1238,10 +1266,17 @@ final class QuiltStore: ObservableObject {
         let sequenceNumber = record.sequenceNumber
         record.sequenceNumber = sequenceNumber
         record.quiltName = backup.quiltName
+        record.startedDate = backup.startedDate
+        record.designerName = backup.designerName
         record.patternName = backup.patternName
+        record.fabricStore = backup.fabricStore
+        record.fabricLine = backup.fabricLine
         record.fabricReminder = backup.fabricReminder
         record.approxSize = backup.approxSize
         record.quiltDate = backup.quiltDate
+        record.quiltingCompletedDate = backup.quiltingCompletedDate
+        record.quilterName = backup.quilterName
+        record.quiltingPatternName = backup.quiltingPatternName
         record.status = backup.status
         record.giftedAlready = backup.giftedAlready
         record.recipient = backup.recipient
@@ -1351,10 +1386,17 @@ final class QuiltStore: ObservableObject {
             id: id(for: record),
             sequenceNumber: record.sequenceNumber,
             quiltName: record.quiltName,
+            startedDate: record.startedDate,
+            designerName: record.designerName,
             patternName: record.patternName,
+            fabricStore: record.fabricStore,
+            fabricLine: record.fabricLine,
             fabricReminder: record.fabricReminder,
             approxSize: record.approxSize,
             quiltDate: record.quiltDate,
+            quiltingCompletedDate: record.quiltingCompletedDate,
+            quilterName: record.quilterName,
+            quiltingPatternName: record.quiltingPatternName,
             status: record.status,
             giftedAlready: record.giftedAlready,
             recipient: record.recipient,

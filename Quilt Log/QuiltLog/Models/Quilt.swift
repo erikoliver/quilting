@@ -7,10 +7,17 @@ struct Quilt: Identifiable, Hashable {
     var id: Int64
     var sequenceNumber: Int
     var quiltName: String
+    var startedDate: String
+    var designerName: String
     var patternName: String
+    var fabricStore: String
+    var fabricLine: String
     var fabricReminder: String
     var approxSize: String
     var quiltDate: String
+    var quiltingCompletedDate: String
+    var quilterName: String
+    var quiltingPatternName: String
     var status: String
     var giftedAlready: Bool
     var recipient: String

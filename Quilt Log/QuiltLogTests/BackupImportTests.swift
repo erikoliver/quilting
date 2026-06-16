@@ -46,11 +46,79 @@ final class BackupImportTests: XCTestCase {
         XCTAssertEqual(store.quilts.count, 1)
         XCTAssertEqual(quilt.sequenceNumber, 1)
         XCTAssertEqual(quilt.quiltName, "Imported Quilt")
+        XCTAssertEqual(quilt.startedDate, "2026-01-15")
+        XCTAssertEqual(quilt.designerName, "Designer")
+        XCTAssertEqual(quilt.fabricStore, "Fabric Store")
+        XCTAssertEqual(quilt.fabricLine, "Fabric Line")
+        XCTAssertEqual(quilt.quiltingCompletedDate, "2026-06-08")
+        XCTAssertEqual(quilt.quilterName, "Quilter")
+        XCTAssertEqual(quilt.quiltingPatternName, "Quilting Pattern")
 
         let photos = try XCTUnwrap(store.photosByQuiltID[quilt.id])
         XCTAssertEqual(photos.count, 1)
         XCTAssertEqual(photos[0].caption, "Front")
         XCTAssertEqual(photos[0].thumbnailData, nil)
+    }
+
+    func testImportsVersionOneBackupWithBlankStructuredDetailFields() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let backupURL = temporaryDirectory.appendingPathComponent("v1.zip")
+        try makeVersionOneBackup(at: backupURL, temporaryDirectory: temporaryDirectory)
+
+        let store = try makeStore()
+        try store.importJSONBackup(from: backupURL, resolution: .skipExisting)
+
+        let quilt = try XCTUnwrap(store.quilts.first)
+        XCTAssertEqual(quilt.quiltName, "Version One Quilt")
+        XCTAssertEqual(quilt.startedDate, "")
+        XCTAssertEqual(quilt.designerName, "")
+        XCTAssertEqual(quilt.fabricStore, "")
+        XCTAssertEqual(quilt.fabricLine, "")
+        XCTAssertEqual(quilt.quiltingCompletedDate, "")
+        XCTAssertEqual(quilt.quilterName, "")
+        XCTAssertEqual(quilt.quiltingPatternName, "")
+    }
+
+    func testExportsVersionTwoBackupWithStructuredDetailFields() async throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let store = try makeStore()
+        let createdQuiltID = await store.createQuilt()
+        let quiltID = try XCTUnwrap(createdQuiltID)
+        var quilt = try XCTUnwrap(store.quilts.first { $0.id == quiltID })
+        quilt.startedDate = "2026-01-15"
+        quilt.designerName = "Deb Tucker"
+        quilt.fabricStore = "Needle & Thread"
+        quilt.fabricLine = "Indelible Ink"
+        quilt.quiltingCompletedDate = "2026-06-08"
+        quilt.quilterName = "Longarm Studio"
+        quilt.quiltingPatternName = "Baptist Fan"
+        let didSave = await store.save(quilt)
+        XCTAssertTrue(didSave)
+
+        let backupURL = temporaryDirectory.appendingPathComponent("export.zip")
+        try store.exportJSONBackup(to: backupURL)
+
+        let payloadDirectory = temporaryDirectory.appendingPathComponent("export-payload", isDirectory: true)
+        try FileManager.default.createDirectory(at: payloadDirectory, withIntermediateDirectories: true)
+        try unzip(archive: backupURL, to: payloadDirectory)
+        let manifestURL = payloadDirectory.appendingPathComponent("manifest.json")
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let manifest = try decoder.decode(QuiltLogBackup.self, from: Data(contentsOf: manifestURL))
+        let exportedQuilt = try XCTUnwrap(manifest.quilts.first)
+
+        XCTAssertEqual(manifest.formatVersion, 2)
+        XCTAssertEqual(exportedQuilt.startedDate, "2026-01-15")
+        XCTAssertEqual(exportedQuilt.designerName, "Deb Tucker")
+        XCTAssertEqual(exportedQuilt.fabricStore, "Needle & Thread")
+        XCTAssertEqual(exportedQuilt.fabricLine, "Indelible Ink")
+        XCTAssertEqual(exportedQuilt.quiltingCompletedDate, "2026-06-08")
+        XCTAssertEqual(exportedQuilt.quilterName, "Longarm Studio")
+        XCTAssertEqual(exportedQuilt.quiltingPatternName, "Baptist Fan")
     }
 
     func testSkipsOverlappingQuiltsAndImportsOnlyNewQuilts() throws {
@@ -229,7 +297,7 @@ final class BackupImportTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: workingDirectory) }
 
         let manifest = QuiltLogBackup(
-            formatVersion: 1,
+            formatVersion: 2,
             exportedAt: exportedAt,
             syncBehavior: "Test backup",
             quilts: quilts
@@ -251,11 +319,56 @@ final class BackupImportTests: XCTestCase {
         try zip(directory: workingDirectory, to: url)
     }
 
+    private func makeVersionOneBackup(at url: URL, temporaryDirectory: URL) throws {
+        let workingDirectory = temporaryDirectory
+            .appendingPathComponent("payload-v1-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: workingDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: workingDirectory) }
+
+        let manifest = """
+        {
+          "exportedAt": "2026-06-07T12:00:00Z",
+          "formatVersion": 1,
+          "quilts": [
+            {
+              "approxSize": "60 x 72",
+              "createdAt": "1970-01-01T00:00:00Z",
+              "fabricReminder": "Fabric",
+              "giftedAlready": false,
+              "legacyID": 0,
+              "notes": "",
+              "patternName": "Pattern",
+              "photos": [],
+              "quiltDate": "2026-06-07",
+              "quiltName": "Version One Quilt",
+              "recipient": "",
+              "sequenceNumber": 1,
+              "status": "1 - Done",
+              "updatedAt": "1970-01-01T00:00:00Z",
+              "uuid": "v1-quilt"
+            }
+          ],
+          "syncBehavior": "Legacy test backup"
+        }
+        """
+        try manifest.data(using: .utf8)!.write(to: workingDirectory.appendingPathComponent("manifest.json"))
+        try zip(directory: workingDirectory, to: url)
+    }
+
     private func zip(directory: URL, to destination: URL) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
         process.currentDirectoryURL = directory
         process.arguments = ["-qry", destination.path, "."]
+        try process.run()
+        process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0)
+    }
+
+    private func unzip(archive: URL, to destination: URL) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        process.arguments = ["-qq", archive.path, "-d", destination.path]
         try process.run()
         process.waitUntilExit()
         XCTAssertEqual(process.terminationStatus, 0)
@@ -274,10 +387,17 @@ final class BackupImportTests: XCTestCase {
             legacyID: 0,
             sequenceNumber: sequenceNumber,
             quiltName: quiltName,
+            startedDate: "2026-01-15",
+            designerName: "Designer",
             patternName: "Pattern",
+            fabricStore: "Fabric Store",
+            fabricLine: "Fabric Line",
             fabricReminder: "Fabric",
             approxSize: "60 x 72",
             quiltDate: "2026-06-07",
+            quiltingCompletedDate: "2026-06-08",
+            quilterName: "Quilter",
+            quiltingPatternName: "Quilting Pattern",
             status: QuiltStatus.done.rawValue,
             giftedAlready: false,
             recipient: "",

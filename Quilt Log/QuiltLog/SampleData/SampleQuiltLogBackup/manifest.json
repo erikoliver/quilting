@@ -1,6 +1,6 @@
 {
   "exportedAt": "2026-06-08T00:00:00Z",
-  "formatVersion": 1,
+  "formatVersion": 2,
   "quilts": [
     {
       "approxSize": "Twin",
@@ -29,7 +29,14 @@
       "sequenceNumber": 1,
       "status": "1 - Done",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "A709F3E8-E8DD-4565-BF60-F5706574BD68"
+      "uuid": "A709F3E8-E8DD-4565-BF60-F5706574BD68",
+      "startedDate": "2021-05-13",
+      "designerName": "",
+      "fabricStore": "Sewing Party",
+      "fabricLine": "Red and purple stash",
+      "quiltingCompletedDate": "2021-06-30",
+      "quilterName": "Erik Oliver",
+      "quiltingPatternName": "Loops"
     },
     {
       "approxSize": "Queen Topper",
@@ -38,7 +45,7 @@
       "giftedAlready": true,
       "legacyID": 2,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Karen Montgomery - Scrap Crazy 8",
+      "patternName": "Scrap Crazy 8",
       "photos": [
         {
           "caption": "",
@@ -58,7 +65,14 @@
       "sequenceNumber": 2,
       "status": "1 - Done",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "23B5E08D-51E6-4693-8AB3-E5FDEA20EE51"
+      "uuid": "23B5E08D-51E6-4693-8AB3-E5FDEA20EE51",
+      "startedDate": "2022-03-18",
+      "designerName": "Karen Montgomery",
+      "fabricStore": "Stash",
+      "fabricLine": "Moda Petal Power",
+      "quiltingCompletedDate": "2022-05-13",
+      "quilterName": "Longarm Studio",
+      "quiltingPatternName": "Meander"
     },
     {
       "approxSize": "Table runner",
@@ -67,7 +81,7 @@
       "giftedAlready": true,
       "legacyID": 3,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Karen Montgomery - Cornered",
+      "patternName": "Cornered",
       "photos": [
         {
           "caption": "",
@@ -87,7 +101,14 @@
       "sequenceNumber": 3,
       "status": "1 - Done",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "EEF6A695-870B-45F6-9CE2-76A624971CA5"
+      "uuid": "EEF6A695-870B-45F6-9CE2-76A624971CA5",
+      "startedDate": "2023-04-12",
+      "designerName": "Karen Montgomery",
+      "fabricStore": "Quilt Shop",
+      "fabricLine": "Counterpoint",
+      "quiltingCompletedDate": "2023-06-15",
+      "quilterName": "Longarm Studio",
+      "quiltingPatternName": "Orange Peel"
     },
     {
       "approxSize": "Throw",
@@ -96,7 +117,7 @@
       "giftedAlready": true,
       "legacyID": 4,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Cozy Quilts - Upstream",
+      "patternName": "Upstream",
       "photos": [
         {
           "caption": "",
@@ -116,7 +137,14 @@
       "sequenceNumber": 4,
       "status": "1 - Done",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "BF5213E2-FD94-458D-BB8E-C4EFE293700C"
+      "uuid": "BF5213E2-FD94-458D-BB8E-C4EFE293700C",
+      "startedDate": "2024-02-22",
+      "designerName": "Cozy Quilts",
+      "fabricStore": "Online",
+      "fabricLine": "Tula Pink Besties",
+      "quiltingCompletedDate": "2024-05-04",
+      "quilterName": "Erik Oliver",
+      "quiltingPatternName": "Diagonal Plaid"
     },
     {
       "approxSize": "Throw",
@@ -125,7 +153,7 @@
       "giftedAlready": true,
       "legacyID": 5,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "King\u2019s Crown",
+      "patternName": "King’s Crown",
       "photos": [
         {
           "caption": "",
@@ -140,21 +168,28 @@
         }
       ],
       "quiltDate": "2025-06-19",
-      "quiltName": "King\u2019s Crown",
+      "quiltName": "King’s Crown",
       "recipient": "Blair",
       "sequenceNumber": 5,
       "status": "1 - Done",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "98B26BC4-F246-4921-8179-E1DB922C27B5"
+      "uuid": "98B26BC4-F246-4921-8179-E1DB922C27B5",
+      "startedDate": "2025-04-03",
+      "designerName": "",
+      "fabricStore": "Guild Sale",
+      "fabricLine": "Donna Jordan Batiks",
+      "quiltingCompletedDate": "2025-06-22",
+      "quilterName": "Longarm Studio",
+      "quiltingPatternName": "Baptist Fan"
     },
     {
       "approxSize": "Throw",
       "createdAt": "2026-06-06T22:46:05Z",
-      "fabricReminder": "Island Batik - William\u2019s Garden",
+      "fabricReminder": "Island Batik - William’s Garden",
       "giftedAlready": false,
       "legacyID": 6,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Creative Grids - Wonky Log Cabin Trim Tool",
+      "patternName": "Wonky Log Cabin Trim Tool",
       "photos": [
         {
           "caption": "",
@@ -174,7 +209,14 @@
       "sequenceNumber": 6,
       "status": "2 - Back from Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "6365F67D-1EAF-4C19-8D38-4DB3F0CC9182"
+      "uuid": "6365F67D-1EAF-4C19-8D38-4DB3F0CC9182",
+      "startedDate": "2025-08-06",
+      "designerName": "Creative Grids",
+      "fabricStore": "Sewing Party",
+      "fabricLine": "Island Batik William's Garden",
+      "quiltingCompletedDate": "2025-09-23",
+      "quilterName": "Longarm Studio",
+      "quiltingPatternName": "Leaves"
     },
     {
       "approxSize": "Throw",
@@ -183,7 +225,7 @@
       "giftedAlready": false,
       "legacyID": 7,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Sew Kind of Wonderful - Giving Hands - Wonder Curve",
+      "patternName": "Giving Hands - Wonder Curve",
       "photos": [
         {
           "caption": "",
@@ -203,7 +245,14 @@
       "sequenceNumber": 7,
       "status": "2 - Back from Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "4FEDC105-D17D-4649-B6C1-4FC93DFD3710"
+      "uuid": "4FEDC105-D17D-4649-B6C1-4FC93DFD3710",
+      "startedDate": "2025-09-02",
+      "designerName": "Sew Kind of Wonderful",
+      "fabricStore": "Stash",
+      "fabricLine": "Moda Words",
+      "quiltingCompletedDate": "2025-10-28",
+      "quilterName": "Erik Oliver",
+      "quiltingPatternName": "Waves"
     },
     {
       "approxSize": "Twin",
@@ -212,7 +261,7 @@
       "giftedAlready": false,
       "legacyID": 8,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Karen Montgomery - Butterfly Fancy",
+      "patternName": "Butterfly Fancy",
       "photos": [
         {
           "caption": "",
@@ -232,7 +281,14 @@
       "sequenceNumber": 8,
       "status": "2 - Back from Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "D4881C65-B615-4E3B-976F-AC8C9FF1691C"
+      "uuid": "D4881C65-B615-4E3B-976F-AC8C9FF1691C",
+      "startedDate": "2025-09-09",
+      "designerName": "Karen Montgomery",
+      "fabricStore": "Quilt Shop",
+      "fabricLine": "Vivid 2025",
+      "quiltingCompletedDate": "2025-11-12",
+      "quilterName": "Longarm Studio",
+      "quiltingPatternName": "Loops"
     },
     {
       "approxSize": "Queen",
@@ -241,7 +297,7 @@
       "giftedAlready": false,
       "legacyID": 9,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Fabric Cafe - Resilience",
+      "patternName": "Resilience",
       "photos": [
         {
           "caption": "",
@@ -261,7 +317,14 @@
       "sequenceNumber": 9,
       "status": "2 - Back from Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "8F1DBB29-F869-4B8A-9BC7-BF92E2BB8B3D"
+      "uuid": "8F1DBB29-F869-4B8A-9BC7-BF92E2BB8B3D",
+      "startedDate": "2025-11-04",
+      "designerName": "Fabric Cafe",
+      "fabricStore": "Online",
+      "fabricLine": "Japanese fabrics",
+      "quiltingCompletedDate": "2026-01-15",
+      "quilterName": "Longarm Studio",
+      "quiltingPatternName": "Meander"
     },
     {
       "approxSize": "TBD",
@@ -290,7 +353,14 @@
       "sequenceNumber": 10,
       "status": "2 - Back from Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "399D5B5C-008B-47F8-AE74-37F3D1D5E461"
+      "uuid": "399D5B5C-008B-47F8-AE74-37F3D1D5E461",
+      "startedDate": "2025-11-23",
+      "designerName": "",
+      "fabricStore": "Guild Sale",
+      "fabricLine": "Moda Rainbow Sherbert",
+      "quiltingCompletedDate": "2026-02-11",
+      "quilterName": "Erik Oliver",
+      "quiltingPatternName": "Orange Peel"
     },
     {
       "approxSize": "Throw",
@@ -319,7 +389,14 @@
       "sequenceNumber": 11,
       "status": "3 - At Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "1F797B5C-9092-48F5-A349-3179B665AB48"
+      "uuid": "1F797B5C-9092-48F5-A349-3179B665AB48",
+      "startedDate": "2026-01-08",
+      "designerName": "",
+      "fabricStore": "Sewing Party",
+      "fabricLine": "Batiks",
+      "quiltingCompletedDate": "",
+      "quilterName": "",
+      "quiltingPatternName": ""
     },
     {
       "approxSize": "Throw",
@@ -328,7 +405,7 @@
       "giftedAlready": true,
       "legacyID": 12,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Cozy Quilts - All Stars",
+      "patternName": "All Stars",
       "photos": [
         {
           "caption": "",
@@ -348,7 +425,14 @@
       "sequenceNumber": 12,
       "status": "3 - At Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "D0B95D4D-31F9-4925-B40C-C4EE3CBE8521"
+      "uuid": "D0B95D4D-31F9-4925-B40C-C4EE3CBE8521",
+      "startedDate": "2026-02-03",
+      "designerName": "Cozy Quilts",
+      "fabricStore": "Stash",
+      "fabricLine": "Island Batik Nouveau Soul",
+      "quiltingCompletedDate": "",
+      "quilterName": "",
+      "quiltingPatternName": ""
     },
     {
       "approxSize": "TBD",
@@ -357,7 +441,7 @@
       "giftedAlready": false,
       "legacyID": 13,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Cozy Quilts - Day Dreaming",
+      "patternName": "Day Dreaming",
       "photos": [
         {
           "caption": "",
@@ -377,7 +461,14 @@
       "sequenceNumber": 13,
       "status": "3 - At Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "0C9C3DCF-7529-42A0-89DC-8A418CFC1117"
+      "uuid": "0C9C3DCF-7529-42A0-89DC-8A418CFC1117",
+      "startedDate": "2026-01-30",
+      "designerName": "Cozy Quilts",
+      "fabricStore": "Quilt Shop",
+      "fabricLine": "Tula Pink True Colors",
+      "quiltingCompletedDate": "",
+      "quilterName": "",
+      "quiltingPatternName": ""
     },
     {
       "approxSize": "Throw",
@@ -386,7 +477,7 @@
       "giftedAlready": false,
       "legacyID": 14,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Eclipse (Fabric Cafe)",
+      "patternName": "Eclipse",
       "photos": [
         {
           "caption": "",
@@ -406,7 +497,14 @@
       "sequenceNumber": 14,
       "status": "3 - At Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "B5D4F2FE-E777-41A5-BCD9-B00A850F96FE"
+      "uuid": "B5D4F2FE-E777-41A5-BCD9-B00A850F96FE",
+      "startedDate": "2026-01-26",
+      "designerName": "Fabric Cafe",
+      "fabricStore": "Online",
+      "fabricLine": "Ai Sayama Cats",
+      "quiltingCompletedDate": "",
+      "quilterName": "",
+      "quiltingPatternName": ""
     },
     {
       "approxSize": "Throw",
@@ -415,7 +513,7 @@
       "giftedAlready": true,
       "legacyID": 15,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Karen Montgomery - Crazier Eights - Fish",
+      "patternName": "Crazier Eights - Fish",
       "photos": [
         {
           "caption": "",
@@ -435,7 +533,14 @@
       "sequenceNumber": 15,
       "status": "3 - At Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "EAA5C53A-2B8C-4EEB-9B5B-441DCC748F29"
+      "uuid": "EAA5C53A-2B8C-4EEB-9B5B-441DCC748F29",
+      "startedDate": "2026-01-24",
+      "designerName": "Karen Montgomery",
+      "fabricStore": "Guild Sale",
+      "fabricLine": "Tula Pink Greywork",
+      "quiltingCompletedDate": "",
+      "quilterName": "",
+      "quiltingPatternName": ""
     },
     {
       "approxSize": "Baby",
@@ -444,7 +549,7 @@
       "giftedAlready": false,
       "legacyID": 16,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Cozy Quilts - No Measure Bargello",
+      "patternName": "No Measure Bargello",
       "photos": [
         {
           "caption": "",
@@ -464,7 +569,14 @@
       "sequenceNumber": 16,
       "status": "4 - To Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "C7ADD7E0-3DCC-4A1B-8981-DDB34681C545"
+      "uuid": "C7ADD7E0-3DCC-4A1B-8981-DDB34681C545",
+      "startedDate": "2026-03-24",
+      "designerName": "Cozy Quilts",
+      "fabricStore": "Sewing Party",
+      "fabricLine": "Various - Tina",
+      "quiltingCompletedDate": "",
+      "quilterName": "",
+      "quiltingPatternName": ""
     },
     {
       "approxSize": "Queen/Small King",
@@ -473,7 +585,7 @@
       "giftedAlready": true,
       "legacyID": 17,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Karen Montgomery - Two Step Tango - Brown Bag Mystery 2026",
+      "patternName": "Two Step Tango - Brown Bag Mystery 2026",
       "photos": [
         {
           "caption": "",
@@ -493,7 +605,14 @@
       "sequenceNumber": 17,
       "status": "4 - To Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "CE814A4A-8065-4D4C-9A4C-180EEFB2E3EC"
+      "uuid": "CE814A4A-8065-4D4C-9A4C-180EEFB2E3EC",
+      "startedDate": "2026-03-25",
+      "designerName": "Karen Montgomery",
+      "fabricStore": "Stash",
+      "fabricLine": "Brown Bag Mystery 2026",
+      "quiltingCompletedDate": "",
+      "quilterName": "",
+      "quiltingPatternName": ""
     },
     {
       "approxSize": "Baby",
@@ -502,7 +621,7 @@
       "giftedAlready": false,
       "legacyID": 18,
       "notes": "Sample data generated for simulator testing.",
-      "patternName": "Clam Toss - Latifah Saafir",
+      "patternName": "Clam Toss",
       "photos": [
         {
           "caption": "",
@@ -522,7 +641,14 @@
       "sequenceNumber": 18,
       "status": "4 - To Longarm",
       "updatedAt": "2026-06-08T03:35:43Z",
-      "uuid": "16408B92-E3D9-432A-95E4-7B8D3DDC25A6"
+      "uuid": "16408B92-E3D9-432A-95E4-7B8D3DDC25A6",
+      "startedDate": "2026-04-06",
+      "designerName": "Latifah Saafir",
+      "fabricStore": "Quilt Shop",
+      "fabricLine": "African wax prints",
+      "quiltingCompletedDate": "",
+      "quilterName": "",
+      "quiltingPatternName": ""
     }
   ],
   "syncBehavior": "Sanitized sample payload for local simulator testing; thumbnails only, with randomized recipients and generic notes."

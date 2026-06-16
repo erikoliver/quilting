@@ -146,79 +146,185 @@ struct QuiltDetailView: View {
     @ViewBuilder
     private var fields: some View {
         if isCompactWidth {
-            VStack(alignment: .leading, spacing: 6) {
-                compactField("Seq #") {
-                    TextField("Seq #", value: $draft.sequenceNumber, format: .number)
+            VStack(alignment: .leading, spacing: 16) {
+                fieldSection("Basics") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        compactField("Seq #") {
+                            TextField("Seq #", value: $draft.sequenceNumber, format: .number)
+                        }
+                        compactField("Status") {
+                            Picker("Status", selection: $draft.status) {
+                                ForEach(QuiltStatus.allCases) { status in
+                                    Text(status.rawValue).tag(status.rawValue)
+                                }
+                            }
+                        }
+                        compactField("Size") {
+                            TextField("Approx Size", text: $draft.approxSize)
+                        }
+                        compactField("Recipient") {
+                            TextField("Recipient", text: $draft.recipient)
+                        }
+                        Toggle("Gifted Already", isOn: $draft.giftedAlready)
+                    }
                 }
-                compactField("Status") {
-                    Picker("Status", selection: $draft.status) {
-                        ForEach(QuiltStatus.allCases) { status in
-                            Text(status.rawValue).tag(status.rawValue)
+
+                fieldSection("Dates") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        compactField("Started") {
+                            TextField("YYYY-MM-DD", text: $draft.startedDate)
+                        }
+                        compactField("Piecing Completed") {
+                            TextField("YYYY-MM-DD", text: $draft.quiltDate)
+                        }
+                        compactField("Quilting Completed") {
+                            TextField("YYYY-MM-DD", text: $draft.quiltingCompletedDate)
                         }
                     }
                 }
-                compactField("Date") {
-                    TextField("YYYY-MM-DD", text: $draft.quiltDate)
+
+                fieldSection("Pattern") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        compactField("Designer") {
+                            TextField("Designer", text: $draft.designerName)
+                        }
+                        compactField("Pattern") {
+                            TextField("Pattern Name", text: $draft.patternName)
+                        }
+                    }
                 }
-                compactField("Pattern") {
-                    TextField("Pattern Name", text: $draft.patternName)
+
+                fieldSection("Fabric") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        compactField("Store") {
+                            TextField("Store", text: $draft.fabricStore)
+                        }
+                        compactField("Fabric Line") {
+                            TextField("Fabric Line", text: $draft.fabricLine)
+                        }
+                        compactField("Fabric") {
+                            TextField("Fabric Reminder", text: $draft.fabricReminder)
+                        }
+                    }
                 }
-                compactField("Fabric") {
-                    TextField("Fabric Reminder", text: $draft.fabricReminder)
+
+                fieldSection("Quilting") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        compactField("Quilter") {
+                            TextField("Quilter", text: $draft.quilterName)
+                        }
+                        compactField("Quilting Pattern") {
+                            TextField("Quilting Pattern", text: $draft.quiltingPatternName)
+                        }
+                    }
                 }
-                compactField("Size") {
-                    TextField("Approx Size", text: $draft.approxSize)
-                }
-                compactField("Recipient") {
-                    TextField("Recipient", text: $draft.recipient)
-                }
-                Toggle("Gifted Already", isOn: $draft.giftedAlready)
             }
             .textFieldStyle(.roundedBorder)
         } else {
-            Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 12) {
-                GridRow {
-                    labeled("Seq #") {
-                        TextField("Seq #", value: $draft.sequenceNumber, format: .number)
-                            .frame(width: 90)
-                    }
-                    labeled("Status") {
-                        Picker("Status", selection: $draft.status) {
-                            ForEach(QuiltStatus.allCases) { status in
-                                Text(status.rawValue).tag(status.rawValue)
+            VStack(alignment: .leading, spacing: 16) {
+                fieldSection("Basics") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 12) {
+                        GridRow {
+                            labeled("Seq #") {
+                                TextField("Seq #", value: $draft.sequenceNumber, format: .number)
+                                    .frame(width: 90)
+                            }
+                            labeled("Status") {
+                                Picker("Status", selection: $draft.status) {
+                                    ForEach(QuiltStatus.allCases) { status in
+                                        Text(status.rawValue).tag(status.rawValue)
+                                    }
+                                }
+                                .labelsHidden()
+                                .frame(width: 230)
+                            }
+                            labeled("Size") {
+                                TextField("Approx Size", text: $draft.approxSize)
+                                    .frame(width: 160)
                             }
                         }
-                        .labelsHidden()
-                        .frame(width: 230)
-                    }
-                    labeled("Date") {
-                        TextField("YYYY-MM-DD", text: $draft.quiltDate)
-                            .frame(width: 140)
-                    }
-                }
-                GridRow {
-                    labeled("Pattern") {
-                        TextField("Pattern Name", text: $draft.patternName)
-                    }
-                    labeled("Fabric") {
-                        TextField("Fabric Reminder", text: $draft.fabricReminder)
-                    }
-                    labeled("Size") {
-                        TextField("Approx Size", text: $draft.approxSize)
-                            .frame(width: 160)
-                    }
-                }
-                GridRow {
-                    labeled("Recipient") {
-                        TextField("Recipient", text: $draft.recipient)
-                    }
-                    labeled("Gifted") {
-                        Toggle("Gifted Already", isOn: $draft.giftedAlready)
+                        GridRow {
+                            labeled("Recipient") {
+                                TextField("Recipient", text: $draft.recipient)
+                                    .frame(minWidth: 260)
+                            }
+                            labeled("Gifted") {
+                                Toggle("Gifted Already", isOn: $draft.giftedAlready)
 #if os(macOS)
-                            .toggleStyle(.checkbox)
+                                    .toggleStyle(.checkbox)
 #endif
+                            }
+                            Color.clear.frame(width: 1, height: 1)
+                        }
                     }
-                    Color.clear.frame(width: 1, height: 1)
+                }
+
+                fieldSection("Dates") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 12) {
+                        GridRow {
+                            labeled("Started") {
+                                TextField("YYYY-MM-DD", text: $draft.startedDate)
+                                    .frame(width: 140)
+                            }
+                            labeled("Piecing Completed") {
+                                TextField("YYYY-MM-DD", text: $draft.quiltDate)
+                                    .frame(width: 140)
+                            }
+                            labeled("Quilting Completed") {
+                                TextField("YYYY-MM-DD", text: $draft.quiltingCompletedDate)
+                                    .frame(width: 140)
+                            }
+                        }
+                    }
+                }
+
+                fieldSection("Pattern") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 12) {
+                        GridRow {
+                            labeled("Designer") {
+                                TextField("Designer", text: $draft.designerName)
+                                    .frame(minWidth: 260)
+                            }
+                            labeled("Pattern") {
+                                TextField("Pattern Name", text: $draft.patternName)
+                                    .frame(minWidth: 360)
+                            }
+                        }
+                    }
+                }
+
+                fieldSection("Fabric") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 12) {
+                        GridRow {
+                            labeled("Store") {
+                                TextField("Store", text: $draft.fabricStore)
+                                    .frame(minWidth: 220)
+                            }
+                            labeled("Fabric Line") {
+                                TextField("Fabric Line", text: $draft.fabricLine)
+                                    .frame(minWidth: 260)
+                            }
+                            labeled("Fabric") {
+                                TextField("Fabric Reminder", text: $draft.fabricReminder)
+                                    .frame(minWidth: 300)
+                            }
+                        }
+                    }
+                }
+
+                fieldSection("Quilting") {
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 12) {
+                        GridRow {
+                            labeled("Quilter") {
+                                TextField("Quilter", text: $draft.quilterName)
+                                    .frame(minWidth: 260)
+                            }
+                            labeled("Quilting Pattern") {
+                                TextField("Quilting Pattern", text: $draft.quiltingPatternName)
+                                    .frame(minWidth: 360)
+                            }
+                        }
+                    }
                 }
             }
             .textFieldStyle(.roundedBorder)
@@ -316,6 +422,14 @@ struct QuiltDetailView: View {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            content()
+        }
+    }
+
+    private func fieldSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
             content()
         }
     }

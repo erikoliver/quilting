@@ -13,7 +13,7 @@
   "properties": {
     "formatVersion": {
       "type": "integer",
-      "const": 1
+      "const": 2
     },
     "exportedAt": {
       "type": "string",
@@ -37,10 +37,17 @@
         "legacyID",
         "sequenceNumber",
         "quiltName",
+        "startedDate",
+        "designerName",
         "patternName",
+        "fabricStore",
+        "fabricLine",
         "fabricReminder",
         "approxSize",
         "quiltDate",
+        "quiltingCompletedDate",
+        "quilterName",
+        "quiltingPatternName",
         "status",
         "giftedAlready",
         "recipient",
@@ -63,7 +70,19 @@
         "quiltName": {
           "type": "string"
         },
+        "startedDate": {
+          "type": "string"
+        },
+        "designerName": {
+          "type": "string"
+        },
         "patternName": {
+          "type": "string"
+        },
+        "fabricStore": {
+          "type": "string"
+        },
+        "fabricLine": {
           "type": "string"
         },
         "fabricReminder": {
@@ -73,6 +92,15 @@
           "type": "string"
         },
         "quiltDate": {
+          "type": "string"
+        },
+        "quiltingCompletedDate": {
+          "type": "string"
+        },
+        "quilterName": {
+          "type": "string"
+        },
+        "quiltingPatternName": {
           "type": "string"
         },
         "status": {
