@@ -9,20 +9,23 @@ Quilt Log is a simple app for keeping track of the quilts you have made, are mak
 Each quilt record can include the basics you want to remember:
 
 - Quilt name and sequence number
-- Pattern, fabric, colors, and size
-- Start and finish dates
+- Pattern, designer, fabric store, fabric line, colors, and size
+- Start, finish, and quilting completion dates
+- Quilter and quilting pattern
 - Status, such as planned, in progress, finished, gifted, or available
 - Recipient and gift details
 - Notes
 - Photos
 
-![Quilt detail view](Documentation/Screenshots/detail_view.png)
+These expanded detail fields were added based on user requests for more structured ways to capture pattern, fabric, quilting, and timeline information.
+
+![Quilt detail view](Documentation/Screenshots/detail_view_v2.png)
 
 ## Browse And Search
 
 Use the gallery to scan your quilts visually, or switch to a more compact list when you want to move through records quickly. Quilts are grouped by status, which makes it easy to see what is finished, what is still in progress, and what is available to give away.
 
-Search works across the main quilt details, including names, patterns, fabric, sizes, dates, recipients, notes, and sequence numbers.
+Search works across the main quilt details, including names, patterns, designers, fabric, sizes, dates, quilters, recipients, notes, and sequence numbers.
 
 ![Status tracking](Documentation/Screenshots/status_tracking.png)
 
