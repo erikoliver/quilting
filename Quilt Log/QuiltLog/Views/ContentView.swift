@@ -1178,7 +1178,6 @@ private struct QuiltCoverTile: View {
             VStack(alignment: .leading, spacing: 7) {
                 ZStack(alignment: .topTrailing) {
                     coverImage
-                        .aspectRatio(1.12, contentMode: .fit)
 
                     Text(quilt.giftedAlready ? "Gifted" : "Available")
                         .font(.caption2.weight(.semibold))
@@ -1201,6 +1200,7 @@ private struct QuiltCoverTile: View {
                 .padding(.horizontal, 2)
             }
             .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(tileBackground)
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
@@ -1215,25 +1215,30 @@ private struct QuiltCoverTile: View {
     }
 
     private var coverImage: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.quiltQuaternaryLabel.opacity(0.2))
+        GeometryReader { proxy in
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.quiltQuaternaryLabel.opacity(0.2))
 
-            if let data = coverPhoto?.thumbnailData, let image = PlatformImage(data: data) {
-                Image(platformImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                VStack(spacing: 8) {
-                    Image(systemName: "photo")
-                        .font(.system(size: 32))
-                    Text("No photo")
-                        .font(.caption)
+                if let data = coverPhoto?.thumbnailData, let image = PlatformImage(data: data) {
+                    Image(platformImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                } else {
+                    VStack(spacing: 8) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 32))
+                        Text("No photo")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
                 }
-                .foregroundStyle(.secondary)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 6))
         }
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .aspectRatio(1.12, contentMode: .fit)
+        .frame(maxWidth: .infinity)
     }
 
     private var tileBackground: Color {
