@@ -11,6 +11,7 @@ import UIKit
 
 extension Notification.Name {
     static let focusQuiltSearch = Notification.Name("focusQuiltSearch")
+    static let showAboutQuiltLog = Notification.Name("showAboutQuiltLog")
 }
 
 struct ContentView: View {
@@ -22,6 +23,7 @@ struct ContentView: View {
     @State private var selectedQuiltID: Int64?
     @State private var showingDeleteConfirmation = false
     @State private var showingPDFExport = false
+    @State private var showingAbout = false
     @State private var searchFocusRequest = 0
     @State private var displayMode: DisplayMode = .list
     @State private var sortOrder: QuiltSortOrder = .oldestFirst
@@ -127,8 +129,15 @@ struct ContentView: View {
             .onChange(of: availabilityFilter) { _, filter in
                 preferences.contentAvailabilityFilter = filter.preferenceValue
             }
+            .sheet(isPresented: $showingAbout) {
+                AboutQuiltLogView()
+                    .environmentObject(store)
+            }
             .onReceive(NotificationCenter.default.publisher(for: .focusQuiltSearch)) { _ in
                 searchFocusRequest += 1
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showAboutQuiltLog)) { _ in
+                showingAbout = true
             }
     }
 
@@ -402,6 +411,13 @@ struct ContentView: View {
             }
             .accessibilityLabel("Filter Quilts")
 
+            Button {
+                showingAbout = true
+            } label: {
+                Image(systemName: "info.circle")
+            }
+            .accessibilityLabel("About Quilt Log")
+
             Spacer(minLength: 0)
 
             Menu {
@@ -447,6 +463,14 @@ struct ContentView: View {
 
     private var iPhoneCommandMenu: some View {
         HStack(spacing: 8) {
+            Button {
+                showingAbout = true
+            } label: {
+                Image(systemName: "info.circle.fill")
+                    .frame(width: 48, height: 48)
+            }
+            .accessibilityLabel("About Quilt Log")
+
             Menu {
                 Button {
                     sortOrder.toggle()

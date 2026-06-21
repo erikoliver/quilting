@@ -383,6 +383,12 @@ private struct WindowFrameKeeper: NSViewRepresentable {
 private extension QuiltLogApp {
     @CommandsBuilder
     var appCommands: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button("About Quilt Log") {
+                NotificationCenter.default.post(name: .showAboutQuiltLog, object: nil)
+            }
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("New Quilt") {
                 guard let store = runtime.store else { return }

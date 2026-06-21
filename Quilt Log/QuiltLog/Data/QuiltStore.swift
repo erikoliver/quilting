@@ -6,6 +6,9 @@ import CoreData
 import CloudKit
 import Foundation
 import ImageIO
+#if os(macOS)
+import Security
+#endif
 import SQLite3
 import SwiftData
 
@@ -32,6 +35,58 @@ struct CloudSyncStatus: Equatable {
         case .idle: "checkmark.icloud"
         case .failed: "exclamationmark.icloud"
         }
+    }
+}
+
+struct QuiltLogRuntimeInfo: Equatable {
+    var appVersion: String
+    var buildNumber: String
+    var cloudKitContainerIdentifier: String
+    var cloudKitEnvironment: String
+    var metadataSchemaVersion: String
+    var expectedMetadataSchemaVersion: String
+    var backupFormatVersion: String
+
+    static func current(
+        cloudKitContainerIdentifier: String,
+        metadataSchemaVersion: String?,
+        expectedMetadataSchemaVersion: Int,
+        backupFormatVersion: Int
+    ) -> QuiltLogRuntimeInfo {
+        let bundle = Bundle.main
+        return QuiltLogRuntimeInfo(
+            appVersion: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown",
+            buildNumber: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
+            cloudKitContainerIdentifier: cloudKitContainerIdentifier,
+            cloudKitEnvironment: cloudKitEnvironmentName(),
+            metadataSchemaVersion: metadataSchemaVersion ?? "unknown",
+            expectedMetadataSchemaVersion: String(expectedMetadataSchemaVersion),
+            backupFormatVersion: String(backupFormatVersion)
+        )
+    }
+
+    private static func cloudKitEnvironmentName() -> String {
+#if targetEnvironment(simulator)
+        return "Development"
+#elseif os(macOS)
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(
+                task,
+                "com.apple.developer.icloud-container-environment" as CFString,
+                nil
+              ) else {
+#if DEBUG
+            return "Development"
+#else
+            return "Unknown"
+#endif
+        }
+        return (value as? String) ?? "Unknown"
+#elseif DEBUG
+        return "Development"
+#else
+        return "Production"
+#endif
     }
 }
 
@@ -125,6 +180,12 @@ final class QuiltStore: ObservableObject {
     @Published private(set) var libraryFolderURL: URL?
     @Published private(set) var migrationProgress: MigrationProgress?
     @Published private(set) var cloudSyncStatus = CloudSyncStatus()
+    @Published private(set) var runtimeInfo = QuiltLogRuntimeInfo.current(
+        cloudKitContainerIdentifier: QuiltStore.cloudKitContainerIdentifier,
+        metadataSchemaVersion: nil,
+        expectedMetadataSchemaVersion: QuiltStore.currentMetadataSchemaVersion,
+        backupFormatVersion: QuiltStore.backupFormatVersion
+    )
 
     private let context: ModelContext
     private var quiltUUIDByID: [Int64: String] = [:]
@@ -140,7 +201,10 @@ final class QuiltStore: ObservableObject {
     private static let thumbnailJPEGCompression: CGFloat = 0.64
     private static let applicationSupportFolderName = "Quilt Log"
     private static let legacyDatabaseFilename = "Quilt Log.sqlite"
+    private static let cloudKitContainerIdentifier = "iCloud.com.erikoliver.quiltlog"
     private static let migrationCompleteKey = "legacySQLiteMigrationComplete"
+    private static let metadataSchemaVersionKey = "schema_version"
+    private static let currentMetadataSchemaVersion = 2
     private static let backupFormatVersion = 2
     private static let cloudKitRetryDelayNanoseconds: UInt64 = 30_000_000_000
     private static let cloudKitQuietSettledDelayNanoseconds: UInt64 = 12_000_000_000
@@ -181,6 +245,8 @@ final class QuiltStore: ObservableObject {
             libraryFolderURL = try Self.applicationSupportDirectory()
             DiagnosticLog.record("store libraryFolderURL=\(self.libraryFolderURL?.path ?? "nil")")
             try await migrateLegacySQLiteIfNeeded()
+            try synchronizeMetadataSchemaVersion()
+            try refreshRuntimeInfo()
             try fetchQuilts(loadPhotos: false)
             DiagnosticLog.record("store initial fetch quilts=\(self.quilts.count)")
             startDeferredPhotoRefresh()
@@ -547,6 +613,8 @@ final class QuiltStore: ObservableObject {
             context.delete(metadata)
         }
         try context.save()
+        try synchronizeMetadataSchemaVersion()
+        try refreshRuntimeInfo()
         try fetchQuilts()
     }
 
@@ -1036,6 +1104,19 @@ final class QuiltStore: ObservableObject {
             predicate: #Predicate { $0.key == key }
         )
         return try context.fetch(descriptor).first?.value
+    }
+
+    private func synchronizeMetadataSchemaVersion() throws {
+        try setMetadataValue(String(Self.currentMetadataSchemaVersion), for: Self.metadataSchemaVersionKey)
+    }
+
+    private func refreshRuntimeInfo() throws {
+        runtimeInfo = QuiltLogRuntimeInfo.current(
+            cloudKitContainerIdentifier: Self.cloudKitContainerIdentifier,
+            metadataSchemaVersion: try metadataValue(for: Self.metadataSchemaVersionKey),
+            expectedMetadataSchemaVersion: Self.currentMetadataSchemaVersion,
+            backupFormatVersion: Self.backupFormatVersion
+        )
     }
 
     private func setMetadataValue(_ value: String, for key: String) throws {
