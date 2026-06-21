@@ -37,18 +37,19 @@ fi
 
 DIST_DIR="$REPO_ROOT/dist"
 DMG_PATH="$DIST_DIR/${APP_NAME}-${VERSION}.dmg"
-STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/${APP_NAME}.dmg.XXXXXX")"
+STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/${APP_NAME}.dmg.XXXXXX")"
+STAGING_DIR="$STAGING_ROOT/Quilt Log"
 MOUNT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/${APP_NAME}.mount.XXXXXX")"
 
 cleanup() {
   if mount | grep -q "on $MOUNT_DIR "; then
-    hdiutil detach "$MOUNT_DIR" >/dev/null || true
+    diskutil eject "$MOUNT_DIR" >/dev/null || true
   fi
-  rm -rf "$STAGING_DIR" "$MOUNT_DIR"
+  rm -rf "$STAGING_ROOT" "$MOUNT_DIR"
 }
 trap cleanup EXIT
 
-mkdir -p "$DIST_DIR"
+mkdir -p "$DIST_DIR" "$STAGING_DIR"
 
 echo "Checking app signature..."
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
@@ -60,20 +61,15 @@ ln -s /Applications "$STAGING_DIR/Applications"
 rm -f "$DMG_PATH"
 
 echo "Creating $DMG_PATH..."
-hdiutil create \
-  -volname "Quilt Log" \
-  -srcfolder "$STAGING_DIR" \
-  -ov \
-  -format UDZO \
-  "$DMG_PATH"
+diskutil image create from --format UDZO "$STAGING_DIR" "$DMG_PATH"
 
 echo "Verifying DMG..."
 hdiutil verify "$DMG_PATH"
 
 echo "Checking packaged app signature..."
-hdiutil attach "$DMG_PATH" -readonly -nobrowse -mountpoint "$MOUNT_DIR" >/dev/null
+diskutil image attach "$DMG_PATH" --readOnly --mountOptions nobrowse --mountPoint "$MOUNT_DIR" >/dev/null
 spctl -a -vv --type execute "$MOUNT_DIR/${APP_NAME}.app"
-hdiutil detach "$MOUNT_DIR" >/dev/null
+diskutil eject "$MOUNT_DIR" >/dev/null
 
 echo "Created: $DMG_PATH"
 shasum -a 256 "$DMG_PATH"
