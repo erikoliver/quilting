@@ -406,6 +406,18 @@ final class QuiltStore: ObservableObject {
         }
     }
 
+    func displayImageData(for photo: QuiltPhoto) -> Data? {
+        do {
+            guard let photoRecord = try photoRecord(for: photo.id) else {
+                return photo.thumbnailData
+            }
+            return photoRecord.imageData ?? photoRecord.thumbnailData ?? photo.thumbnailData
+        } catch {
+            errorMessage = error.localizedDescription
+            return photo.thumbnailData
+        }
+    }
+
     func movePhoto(_ photo: QuiltPhoto, by offset: Int) async {
         do {
             guard let photoRecord = try photoRecord(for: photo.id),

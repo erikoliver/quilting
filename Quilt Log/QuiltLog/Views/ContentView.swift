@@ -367,40 +367,56 @@ struct ContentView: View {
 
 #if os(iOS)
     private var iPadCommandBar: some View {
+        ViewThatFits(in: .horizontal) {
+            iPadExpandedCommandBar
+            iPadCompactCommandBar
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.regular)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .quiltCommandGlass(in: Rectangle())
+    }
+
+    private var iPadExpandedCommandBar: some View {
         HStack(spacing: 10) {
-            Button {
-                columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
-            } label: {
-                Image(systemName: "sidebar.left")
-            }
-            .accessibilityLabel(columnVisibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar")
+            sidebarToggleButton
+            viewModePicker
+            sortButton
+            groupingMenu
+            availabilityMenu
+            aboutButton
 
-            Picker("View", selection: $displayMode) {
-                Label("List", systemImage: "list.bullet").tag(DisplayMode.list)
-                Label("Gallery", systemImage: "square.grid.3x3").tag(DisplayMode.gallery)
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 150)
+            Spacer(minLength: 0)
 
-            Button {
-                sortOrder.toggle()
-            } label: {
-                Image(systemName: "arrow.up.arrow.down")
-            }
-            .accessibilityLabel(sortOrder.title)
+            pdfShareMenu
+            newQuiltButton
+            deleteQuiltButton
+        }
+        .labelStyle(.iconOnly)
+    }
+
+    private var iPadCompactCommandBar: some View {
+        HStack(spacing: 10) {
+            sidebarToggleButton
+            viewModePicker
+
+            Spacer(minLength: 0)
 
             Menu {
+                Button {
+                    sortOrder.toggle()
+                } label: {
+                    Label(sortOrder.title, systemImage: "arrow.up.arrow.down")
+                }
+
                 Picker("Group", selection: $groupingMode) {
                     ForEach(QuiltGroupingMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
                 }
-            } label: {
-                Image(systemName: "rectangle.3.group")
-            }
-            .accessibilityLabel("Group Quilts")
 
-            Menu {
                 Picker("Show", selection: $availabilityFilter) {
                     ForEach(QuiltAvailabilityFilter.allOptions) { filter in
                         Text(filter.title).tag(filter)
@@ -409,56 +425,115 @@ struct ContentView: View {
             } label: {
                 Image(systemName: "line.3.horizontal.decrease.circle")
             }
-            .accessibilityLabel("Filter Quilts")
-
-            Button {
-                showingAbout = true
-            } label: {
-                Image(systemName: "info.circle")
-            }
-            .accessibilityLabel("About Quilt Log")
-
-            Spacer(minLength: 0)
+            .accessibilityLabel("Filter and Sort")
 
             Menu {
-                ForEach(PDFExportPreset.allCases) { preset in
-                    Button {
-                        sharePDF(preset)
-                    } label: {
-                        Label(preset.title, systemImage: "doc.richtext")
-                    }
-                }
+                aboutButton
+                pdfShareMenu
+                newQuiltButton
+                deleteQuiltButton
             } label: {
-                Image(systemName: "square.and.arrow.up")
+                Image(systemName: "ellipsis.circle")
             }
-            .accessibilityLabel("Share PDF")
-
-            Button {
-                Task {
-                    if let newID = await store.createQuilt() {
-                        selectedQuiltID = newID
-                        displayMode = .list
-                    }
-                }
-            } label: {
-                Image(systemName: "plus")
-            }
-            .accessibilityLabel("New Quilt")
-
-            Button {
-                showingDeleteConfirmation = true
-            } label: {
-                Image(systemName: "trash")
-            }
-            .disabled(selectedQuilt == nil)
-            .accessibilityLabel("Delete Quilt")
+            .accessibilityLabel("More Actions")
         }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.thinMaterial)
+    }
+
+    private var sidebarToggleButton: some View {
+        Button {
+            columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+        } label: {
+            Image(systemName: "sidebar.left")
+        }
+        .accessibilityLabel(columnVisibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar")
+    }
+
+    private var viewModePicker: some View {
+        Picker("View", selection: $displayMode) {
+            Label("List", systemImage: "list.bullet").tag(DisplayMode.list)
+            Label("Gallery", systemImage: "square.grid.3x3").tag(DisplayMode.gallery)
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 150)
+    }
+
+    private var sortButton: some View {
+        Button {
+            sortOrder.toggle()
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+        }
+        .accessibilityLabel(sortOrder.title)
+    }
+
+    private var groupingMenu: some View {
+        Menu {
+            Picker("Group", selection: $groupingMode) {
+                ForEach(QuiltGroupingMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+        } label: {
+            Image(systemName: "rectangle.3.group")
+        }
+        .accessibilityLabel("Group Quilts")
+    }
+
+    private var availabilityMenu: some View {
+        Menu {
+            Picker("Show", selection: $availabilityFilter) {
+                ForEach(QuiltAvailabilityFilter.allOptions) { filter in
+                    Text(filter.title).tag(filter)
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+        }
+        .accessibilityLabel("Filter Quilts")
+    }
+
+    private var aboutButton: some View {
+        Button {
+            showingAbout = true
+        } label: {
+            Label("About Quilt Log", systemImage: "info.circle")
+        }
+    }
+
+    private var pdfShareMenu: some View {
+        Menu {
+            ForEach(PDFExportPreset.allCases) { preset in
+                Button {
+                    sharePDF(preset)
+                } label: {
+                    Label(preset.title, systemImage: "doc.richtext")
+                }
+            }
+        } label: {
+            Label("Share PDF", systemImage: "square.and.arrow.up")
+        }
+    }
+
+    private var newQuiltButton: some View {
+        Button {
+            Task {
+                if let newID = await store.createQuilt() {
+                    selectedQuiltID = newID
+                    displayMode = .list
+                }
+            }
+        } label: {
+            Label("New Quilt", systemImage: "plus")
+        }
+    }
+
+    private var deleteQuiltButton: some View {
+        Button {
+            showingDeleteConfirmation = true
+        } label: {
+            Label("Delete Quilt", systemImage: "trash")
+        }
+        .disabled(selectedQuilt == nil)
     }
 
     private var iPhoneCommandMenu: some View {
@@ -533,7 +608,7 @@ struct ContentView: View {
         .symbolRenderingMode(.hierarchical)
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .background(.thinMaterial, in: Capsule())
+        .quiltCommandGlass(in: Capsule())
     }
 
     private func sharePDF(_ preset: PDFExportPreset) {
@@ -634,6 +709,19 @@ struct ContentView: View {
 #endif
     }
 }
+
+#if os(iOS)
+private extension View {
+    @ViewBuilder
+    func quiltCommandGlass<S: Shape>(in shape: S) -> some View {
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular.interactive(), in: shape)
+        } else {
+            background(.thinMaterial, in: shape)
+        }
+    }
+}
+#endif
 
 private struct InitialCloudSyncView: View {
     let message: String

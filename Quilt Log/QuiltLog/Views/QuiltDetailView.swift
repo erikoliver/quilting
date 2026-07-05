@@ -20,8 +20,10 @@ struct QuiltDetailView: View {
     @State private var lastSavedDraft: Quilt
     @State private var autoSaveTask: Task<Void, Never>?
     @State private var showingPhotoImporter = false
+    @State private var selectedPhotoID: Int64?
 #if os(iOS)
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var presentedPhoto: QuiltPhoto?
 #endif
     @State private var isPhotoDropTargeted = false
     @State private var sequenceConflict: Quilt?
@@ -45,6 +47,21 @@ struct QuiltDetailView: View {
             .padding(detailPadding)
         }
         .id(draft.id)
+#if os(iOS)
+        .sheet(item: $presentedPhoto) { photo in
+            NavigationStack {
+                PhotoDetailView(photo: photo)
+                    .navigationTitle("Photo")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                presentedPhoto = nil
+                            }
+                        }
+                    }
+            }
+        }
+#endif
         .onAppear {
             displayedDatabaseGeneration = store.databaseGeneration
         }
@@ -374,15 +391,7 @@ struct QuiltDetailView: View {
                 ContentUnavailableView("No Photos", systemImage: "photo")
                     .frame(maxWidth: .infinity, minHeight: 160)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: photoTileMinimumWidth), spacing: 12)], spacing: 12) {
-                    ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
-                        PhotoTile(
-                            photo: photo,
-                            isFirst: index == photos.startIndex,
-                            isLast: index == photos.index(before: photos.endIndex)
-                        )
-                    }
-                }
+                photoBrowser(for: photos)
             }
         }
         .padding(10)
@@ -401,6 +410,59 @@ struct QuiltDetailView: View {
             addPhotos(from: providers)
             return true
         }
+    }
+
+    @ViewBuilder
+    private func photoBrowser(for photos: [QuiltPhoto]) -> some View {
+#if os(macOS)
+        HStack(alignment: .top, spacing: 16) {
+            photoGrid(for: photos)
+                .frame(minWidth: 320, idealWidth: 520, maxWidth: 620, alignment: .topLeading)
+
+            if let selectedPhoto = selectedPhoto(in: photos) {
+                PhotoDetailView(photo: selectedPhoto)
+                    .frame(minWidth: 360, maxWidth: .infinity, minHeight: 320, idealHeight: 420)
+                    .layoutPriority(1)
+            }
+        }
+#else
+        photoGrid(for: photos)
+#endif
+    }
+
+    private func photoGrid(for photos: [QuiltPhoto]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: photoTileMinimumWidth), spacing: 12)], spacing: 12) {
+            ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
+                PhotoTile(
+                    photo: photo,
+                    isFirst: index == photos.startIndex,
+                    isLast: index == photos.index(before: photos.endIndex),
+                    isSelected: isSelected(photo, in: photos)
+                ) {
+#if os(macOS)
+                    selectedPhotoID = photo.id
+#else
+                    presentedPhoto = photo
+#endif
+                }
+            }
+        }
+    }
+
+    private func selectedPhoto(in photos: [QuiltPhoto]) -> QuiltPhoto? {
+        if let selectedPhotoID,
+           let selectedPhoto = photos.first(where: { $0.id == selectedPhotoID }) {
+            return selectedPhoto
+        }
+        return photos.first
+    }
+
+    private func isSelected(_ photo: QuiltPhoto, in photos: [QuiltPhoto]) -> Bool {
+#if os(macOS)
+        selectedPhoto(in: photos)?.id == photo.id
+#else
+        false
+#endif
     }
 
     private var notes: some View {
@@ -656,30 +718,63 @@ struct QuiltDetailView: View {
 #endif
 }
 
+private struct PhotoDetailView: View {
+    @EnvironmentObject private var store: QuiltStore
+    let photo: QuiltPhoto
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.quaternary)
+                if let image = displayImage {
+                    Image(platformImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(8)
+                } else {
+                    Image(systemName: "photo")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if !photo.caption.isEmpty {
+                Text(photo.caption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(8)
+    }
+
+    private var displayImage: PlatformImage? {
+        guard let data = store.displayImageData(for: photo) else { return nil }
+        return PlatformImage(data: data)
+    }
+}
+
 private struct PhotoTile: View {
     @EnvironmentObject private var store: QuiltStore
     let photo: QuiltPhoto
     let isFirst: Bool
     let isLast: Bool
+    let isSelected: Bool
+    let onOpen: () -> Void
     @State private var showingDeleteConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(.quaternary)
-                if let data = photo.thumbnailData, let image = PlatformImage(data: data) {
-                    Image(platformImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                } else {
-                    Image(systemName: "photo")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
-                }
+            Button(action: onOpen) {
+                thumbnail
             }
-            .frame(height: 150)
+            .buttonStyle(.plain)
+            .help("Show larger photo")
+            .accessibilityLabel("Show larger photo")
+
             HStack(spacing: 4) {
                 Button {
                     Task { await store.setCoverPhoto(photo) }
@@ -730,5 +825,28 @@ private struct PhotoTile: View {
         } message: {
             Text("This will permanently delete this stored quilt photo.")
         }
+    }
+
+    private var thumbnail: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(.quaternary)
+            if let data = photo.thumbnailData, let image = PlatformImage(data: data) {
+                Image(platformImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                Image(systemName: "photo")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(height: 150)
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 3)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 6))
     }
 }
