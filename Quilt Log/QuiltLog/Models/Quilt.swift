@@ -40,6 +40,7 @@ enum QuiltStatus: String, CaseIterable, Identifiable {
     case atLongarm = "3 - At Longarm"
     case toLongarm = "4 - To Longarm"
     case inProgress = "5 - In Progress"
+    case notStarted = "6 - Not Started"
 
     var id: String { rawValue }
 }

@@ -178,6 +178,8 @@ final class QuiltStore: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var databaseGeneration = 0
     @Published private(set) var libraryFolderURL: URL?
+    private let thumbnailImageCache = NSCache<NSNumber, PlatformImage>()
+    private let displayImageCache = NSCache<NSNumber, PlatformImage>()
     @Published private(set) var migrationProgress: MigrationProgress?
     @Published private(set) var cloudSyncStatus = CloudSyncStatus()
     @Published private(set) var runtimeInfo = QuiltLogRuntimeInfo.current(
@@ -212,6 +214,8 @@ final class QuiltStore: ObservableObject {
     init(modelContainer: ModelContainer, onCloudKitRetryRequested: (() -> Void)? = nil) {
         context = ModelContext(modelContainer)
         self.onCloudKitRetryRequested = onCloudKitRetryRequested
+        thumbnailImageCache.countLimit = 300
+        displayImageCache.countLimit = 20
         DiagnosticLog.record("store init; registering CloudKit event observer")
         observeCloudKitEvents()
     }
@@ -283,7 +287,12 @@ final class QuiltStore: ObservableObject {
             }
             update(record, from: quilt)
             try context.save()
-            try fetchQuilts()
+            if let index = quilts.firstIndex(where: { $0.id == quilt.id }) {
+                quilts[index] = quilt
+            } else {
+                quilts.append(quilt)
+                quilts.sort { $0.sequenceNumber < $1.sequenceNumber }
+            }
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -406,16 +415,40 @@ final class QuiltStore: ObservableObject {
         }
     }
 
-    func displayImageData(for photo: QuiltPhoto) -> Data? {
+    func thumbnailImage(for photo: QuiltPhoto) -> PlatformImage? {
+        let key = NSNumber(value: photo.id)
+        if let cached = thumbnailImageCache.object(forKey: key) {
+            return cached
+        }
+        guard let data = photo.thumbnailData, let image = PlatformImage(data: data) else {
+            return nil
+        }
+        thumbnailImageCache.setObject(image, forKey: key)
+        return image
+    }
+
+    func displayImage(for photo: QuiltPhoto) -> PlatformImage? {
+        let key = NSNumber(value: photo.id)
+        if let cached = displayImageCache.object(forKey: key) {
+            return cached
+        }
+
+        let data: Data?
         do {
             guard let photoRecord = try photoRecord(for: photo.id) else {
-                return photo.thumbnailData
+                return thumbnailImage(for: photo)
             }
-            return photoRecord.imageData ?? photoRecord.thumbnailData ?? photo.thumbnailData
+            data = photoRecord.imageData ?? photoRecord.thumbnailData ?? photo.thumbnailData
         } catch {
             errorMessage = error.localizedDescription
-            return photo.thumbnailData
+            return thumbnailImage(for: photo)
         }
+
+        guard let data, let image = PlatformImage(data: data) else {
+            return thumbnailImage(for: photo)
+        }
+        displayImageCache.setObject(image, forKey: key)
+        return image
     }
 
     func movePhoto(_ photo: QuiltPhoto, by offset: Int) async {

@@ -46,7 +46,6 @@ struct QuiltDetailView: View {
             }
             .padding(detailPadding)
         }
-        .id(draft.id)
 #if os(iOS)
         .sheet(item: $presentedPhoto) { photo in
             NavigationStack {
@@ -80,8 +79,24 @@ struct QuiltDetailView: View {
                 autoSaveTask?.cancel()
                 return
             }
+#if os(iOS)
             scheduleAutoSave()
+#endif
         }
+        .onChange(of: draft.status) { _, _ in
+            flushPendingSave()
+        }
+        .onChange(of: draft.giftedAlready) { _, _ in
+            flushPendingSave()
+        }
+#if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: NSControl.textDidEndEditingNotification)) { _ in
+            flushPendingSave()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSText.didEndEditingNotification)) { _ in
+            flushPendingSave()
+        }
+#endif
         .onDisappear {
             flushPendingSave()
         }
@@ -721,21 +736,21 @@ struct QuiltDetailView: View {
 private struct PhotoDetailView: View {
     @EnvironmentObject private var store: QuiltStore
     let photo: QuiltPhoto
+    @State private var image: PlatformImage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(.quaternary)
-                if let image = displayImage {
+                if let image {
                     Image(platformImage: image)
                         .resizable()
                         .scaledToFit()
                         .padding(8)
                 } else {
-                    Image(systemName: "photo")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.secondary)
+                    ProgressView()
+                        .controlSize(.large)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -749,12 +764,14 @@ private struct PhotoDetailView: View {
             }
         }
         .padding(8)
+        .task(id: photo.id) {
+            image = nil
+            try? await Task.sleep(nanoseconds: 30_000_000)
+            guard !Task.isCancelled else { return }
+            image = store.displayImage(for: photo)
+        }
     }
 
-    private var displayImage: PlatformImage? {
-        guard let data = store.displayImageData(for: photo) else { return nil }
-        return PlatformImage(data: data)
-    }
 }
 
 private struct PhotoTile: View {
@@ -765,6 +782,7 @@ private struct PhotoTile: View {
     let isSelected: Bool
     let onOpen: () -> Void
     @State private var showingDeleteConfirmation = false
+    @State private var thumbnailImage: PlatformImage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -825,21 +843,26 @@ private struct PhotoTile: View {
         } message: {
             Text("This will permanently delete this stored quilt photo.")
         }
+        .task(id: photo.id) {
+            thumbnailImage = nil
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            thumbnailImage = store.thumbnailImage(for: photo)
+        }
     }
 
     private var thumbnail: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 6)
                 .fill(.quaternary)
-            if let data = photo.thumbnailData, let image = PlatformImage(data: data) {
+            if let image = thumbnailImage {
                 Image(platformImage: image)
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
-                Image(systemName: "photo")
-                    .font(.largeTitle)
-                    .foregroundStyle(.secondary)
+                ProgressView()
+                    .controlSize(.small)
             }
         }
         .frame(height: 150)
