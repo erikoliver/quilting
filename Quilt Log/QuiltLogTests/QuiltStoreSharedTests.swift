@@ -1,6 +1,8 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
+import CoreGraphics
+import ImageIO
 import SwiftData
 import XCTest
 @testable import QuiltLog
@@ -71,6 +73,33 @@ final class QuiltStoreSharedTests: XCTestCase {
         XCTAssertEqual(store.filteredQuilts.map(\.id), [quiltID])
     }
 
+    func testDisplayImageCacheSurvivesStoreReload() async throws {
+        let container = try makeContainer()
+        let store = QuiltStore(modelContainer: container)
+        let createdQuiltID = await store.createQuilt()
+        let quiltID = try XCTUnwrap(createdQuiltID)
+        let quilt = try XCTUnwrap(store.quilts.first { $0.id == quiltID })
+        try store.addPhoto(to: quilt, data: try makeJPEGData(), mimeType: "image/jpeg")
+        let photo = try XCTUnwrap(store.photosByQuiltID[quiltID]?.first)
+
+        let firstImage = await store.displayImage(for: photo)
+        XCTAssertNotNil(firstImage)
+
+        let context = ModelContext(container)
+        let record = try XCTUnwrap(context.fetch(FetchDescriptor<QuiltPhotoRecord>()).first)
+        record.imageData = nil
+        record.thumbnailData = nil
+        try context.save()
+
+        let reloadedStore = QuiltStore(modelContainer: container)
+        try reloadedStore.fetchQuilts()
+        let reloadedPhoto = try XCTUnwrap(reloadedStore.photosByQuiltID[quiltID]?.first)
+        let cachedImage = await reloadedStore.displayImage(for: reloadedPhoto)
+        XCTAssertNotNil(cachedImage)
+
+        await reloadedStore.deletePhoto(reloadedPhoto)
+    }
+
 #if DEBUG && targetEnvironment(simulator)
     func testImportsBundledSampleDataOnSimulator() async throws {
         let store = try makeStore()
@@ -105,6 +134,10 @@ final class QuiltStoreSharedTests: XCTestCase {
 #endif
 
     private func makeStore() throws -> QuiltStore {
+        QuiltStore(modelContainer: try makeContainer())
+    }
+
+    private func makeContainer() throws -> ModelContainer {
         let schema = Schema([
             QuiltRecord.self,
             QuiltPhotoRecord.self,
@@ -116,8 +149,34 @@ final class QuiltStoreSharedTests: XCTestCase {
             isStoredInMemoryOnly: true,
             cloudKitDatabase: .none
         )
-        let container = try ModelContainer(for: schema, configurations: [configuration])
-        return QuiltStore(modelContainer: container)
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    private func makeJPEGData() throws -> Data {
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        let context = try XCTUnwrap(CGContext(
+            data: nil,
+            width: 32,
+            height: 32,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ))
+        context.setFillColor(red: 0.2, green: 0.5, blue: 0.8, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: 32, height: 32))
+        let image = try XCTUnwrap(context.makeImage())
+        let data = NSMutableData()
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithData(
+            data,
+            "public.jpeg" as CFString,
+            1,
+            nil
+        ))
+        CGImageDestinationAddImage(destination, image, nil)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        return data as Data
     }
 
 #if DEBUG && targetEnvironment(simulator)

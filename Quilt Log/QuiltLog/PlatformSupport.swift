@@ -24,6 +24,12 @@ import AppKit
 
 typealias PlatformImage = NSImage
 
+extension NSImage {
+    convenience init(cgImage: CGImage) {
+        self.init(cgImage: cgImage, size: .zero)
+    }
+}
+
 extension Image {
     init(platformImage: PlatformImage) {
         self.init(nsImage: platformImage)

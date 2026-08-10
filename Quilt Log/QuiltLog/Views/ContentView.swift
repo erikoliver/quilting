@@ -1254,12 +1254,14 @@ private struct QuiltGalleryView: View {
 }
 
 private struct QuiltCoverTile: View {
+    @EnvironmentObject private var store: QuiltStore
     let quilt: Quilt
     let coverPhoto: QuiltPhoto?
     let isSelected: Bool
     let hideRecipient: Bool
     let action: () -> Void
     let doubleClickAction: () -> Void
+    @State private var thumbnailImage: PlatformImage?
 
     var body: some View {
         Button(action: action) {
@@ -1300,6 +1302,11 @@ private struct QuiltCoverTile: View {
             TapGesture(count: 2)
                 .onEnded { doubleClickAction() }
         )
+        .task(id: coverPhoto?.id) {
+            thumbnailImage = nil
+            guard let coverPhoto else { return }
+            thumbnailImage = await store.thumbnailImage(for: coverPhoto)
+        }
     }
 
     private var coverImage: some View {
@@ -1308,7 +1315,7 @@ private struct QuiltCoverTile: View {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.quiltQuaternaryLabel.opacity(0.2))
 
-                if let data = coverPhoto?.thumbnailData, let image = PlatformImage(data: data) {
+                if let image = thumbnailImage {
                     Image(platformImage: image)
                         .resizable()
                         .scaledToFit()
@@ -1349,70 +1356,79 @@ private struct QuiltCoverTile: View {
 }
 
 private struct GalleryInspector: View {
+    @EnvironmentObject private var store: QuiltStore
     let quilt: Quilt?
     let coverPhoto: QuiltPhoto?
     @Binding var displayMode: DisplayMode
     let hideRecipient: Bool
     let onEditDetails: () -> Void
+    @State private var thumbnailImage: PlatformImage?
 
     var body: some View {
-        if let quilt {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    inspectorCover
+        Group {
+            if let quilt {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        inspectorCover
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(quilt.quiltName)
-                            .font(.title2.bold())
-                            .lineLimit(2)
-                        Text("#\(quilt.sequenceNumber)")
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Divider()
-
-                    metadata("Status", quilt.status)
-                    metadata("Size", quilt.approxSize)
-                    metadata("Started", quilt.startedDate)
-                    metadata("Piecing Completed", quilt.quiltDate)
-                    metadata("Quilting Completed", quilt.quiltingCompletedDate)
-                    metadata("Designer", quilt.designerName)
-                    metadata("Pattern", quilt.patternName)
-                    metadata("Fabric Store", quilt.fabricStore)
-                    metadata("Fabric Line", quilt.fabricLine)
-                    metadata("Fabric", quilt.fabricReminder)
-                    metadata("Quilter", quilt.quilterName)
-                    metadata("Quilting Pattern", quilt.quiltingPatternName)
-                    if !hideRecipient {
-                        metadata("Recipient", quilt.recipient)
-                    }
-
-                    if !quilt.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Divider()
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Notes")
-                                .font(.caption)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(quilt.quiltName)
+                                .font(.title2.bold())
+                                .lineLimit(2)
+                            Text("#\(quilt.sequenceNumber)")
                                 .foregroundStyle(.secondary)
-                            Text(quilt.notes)
-                                .font(.callout)
-                                .lineLimit(6)
                         }
-                    }
 
-                    Button {
-                        displayMode = .list
-                        onEditDetails()
-                    } label: {
-                        Label("Edit Details", systemImage: "square.and.pencil")
-                            .frame(maxWidth: .infinity)
+                        Divider()
+
+                        metadata("Status", quilt.status)
+                        metadata("Size", quilt.approxSize)
+                        metadata("Started", quilt.startedDate)
+                        metadata("Piecing Completed", quilt.quiltDate)
+                        metadata("Quilting Completed", quilt.quiltingCompletedDate)
+                        metadata("Designer", quilt.designerName)
+                        metadata("Pattern", quilt.patternName)
+                        metadata("Fabric Store", quilt.fabricStore)
+                        metadata("Fabric Line", quilt.fabricLine)
+                        metadata("Fabric", quilt.fabricReminder)
+                        metadata("Quilter", quilt.quilterName)
+                        metadata("Quilting Pattern", quilt.quiltingPatternName)
+                        if !hideRecipient {
+                            metadata("Recipient", quilt.recipient)
+                        }
+
+                        if !quilt.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Divider()
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Notes")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(quilt.notes)
+                                    .font(.callout)
+                                    .lineLimit(6)
+                            }
+                        }
+
+                        Button {
+                            displayMode = .list
+                            onEditDetails()
+                        } label: {
+                            Label("Edit Details", systemImage: "square.and.pencil")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .controlSize(.large)
                     }
-                    .controlSize(.large)
+                    .padding(20)
                 }
-                .padding(20)
+            } else {
+                ContentUnavailableView("No Quilt Selected", systemImage: "photo.on.rectangle")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        } else {
-            ContentUnavailableView("No Quilt Selected", systemImage: "photo.on.rectangle")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .task(id: coverPhoto?.id) {
+            thumbnailImage = nil
+            guard let coverPhoto else { return }
+            thumbnailImage = await store.thumbnailImage(for: coverPhoto)
         }
     }
 
@@ -1421,7 +1437,7 @@ private struct GalleryInspector: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color.quiltQuaternaryLabel.opacity(0.2))
 
-            if let data = coverPhoto?.thumbnailData, let image = PlatformImage(data: data) {
+            if let image = thumbnailImage {
                 Image(platformImage: image)
                     .resizable()
                     .scaledToFit()

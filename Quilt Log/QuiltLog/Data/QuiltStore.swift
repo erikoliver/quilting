@@ -180,6 +180,7 @@ final class QuiltStore: ObservableObject {
     @Published private(set) var libraryFolderURL: URL?
     private let thumbnailImageCache = NSCache<NSNumber, PlatformImage>()
     private let displayImageCache = NSCache<NSNumber, PlatformImage>()
+    private let imagePipeline: QuiltImagePipeline
     @Published private(set) var migrationProgress: MigrationProgress?
     @Published private(set) var cloudSyncStatus = CloudSyncStatus()
     @Published private(set) var runtimeInfo = QuiltLogRuntimeInfo.current(
@@ -213,9 +214,16 @@ final class QuiltStore: ObservableObject {
 
     init(modelContainer: ModelContainer, onCloudKitRetryRequested: (() -> Void)? = nil) {
         context = ModelContext(modelContainer)
+        imagePipeline = QuiltImagePipeline(modelContainer: modelContainer)
         self.onCloudKitRetryRequested = onCloudKitRetryRequested
         thumbnailImageCache.countLimit = 300
-        displayImageCache.countLimit = 20
+        thumbnailImageCache.totalCostLimit = 96 * 1_024 * 1_024
+        displayImageCache.countLimit = 100
+#if os(macOS)
+        displayImageCache.totalCostLimit = 512 * 1_024 * 1_024
+#else
+        displayImageCache.totalCostLimit = 256 * 1_024 * 1_024
+#endif
         DiagnosticLog.record("store init; registering CloudKit event observer")
         observeCloudKitEvents()
     }
@@ -415,40 +423,51 @@ final class QuiltStore: ObservableObject {
         }
     }
 
-    func thumbnailImage(for photo: QuiltPhoto) -> PlatformImage? {
+    func thumbnailImage(for photo: QuiltPhoto) async -> PlatformImage? {
         let key = NSNumber(value: photo.id)
         if let cached = thumbnailImageCache.object(forKey: key) {
             return cached
         }
-        guard let data = photo.thumbnailData, let image = PlatformImage(data: data) else {
+        guard let data = photo.thumbnailData,
+              let cgImage = await imagePipeline.thumbnailCGImage(data: data) else {
             return nil
         }
-        thumbnailImageCache.setObject(image, forKey: key)
+        let image = PlatformImage(cgImage: cgImage)
+        thumbnailImageCache.setObject(image, forKey: key, cost: Self.imageCost(cgImage))
         return image
     }
 
-    func displayImage(for photo: QuiltPhoto) -> PlatformImage? {
+    func displayImage(for photo: QuiltPhoto) async -> PlatformImage? {
         let key = NSNumber(value: photo.id)
         if let cached = displayImageCache.object(forKey: key) {
             return cached
         }
-
-        let data: Data?
-        do {
-            guard let photoRecord = try photoRecord(for: photo.id) else {
-                return thumbnailImage(for: photo)
-            }
-            data = photoRecord.imageData ?? photoRecord.thumbnailData ?? photo.thumbnailData
-        } catch {
-            errorMessage = error.localizedDescription
-            return thumbnailImage(for: photo)
+        guard let uuid = photoUUIDByID[photo.id] else {
+            return await thumbnailImage(for: photo)
         }
-
-        guard let data, let image = PlatformImage(data: data) else {
-            return thumbnailImage(for: photo)
+        guard let cgImage = await imagePipeline.displayCGImage(
+            photoUUID: uuid,
+            fallbackThumbnailData: photo.thumbnailData
+        ) else {
+            return await thumbnailImage(for: photo)
         }
-        displayImageCache.setObject(image, forKey: key)
+        let image = PlatformImage(cgImage: cgImage)
+        displayImageCache.setObject(image, forKey: key, cost: Self.imageCost(cgImage))
         return image
+    }
+
+    func prefetchDisplayImages(around quiltID: Int64) async {
+        try? await Task.sleep(nanoseconds: 250_000_000)
+        guard !Task.isCancelled else { return }
+        guard let selectedIndex = quilts.firstIndex(where: { $0.id == quiltID }) else { return }
+        let nearbyIndices = [selectedIndex + 1, selectedIndex - 1]
+        for index in nearbyIndices where quilts.indices.contains(index) {
+            guard !Task.isCancelled else { return }
+            let nearbyQuilt = quilts[index]
+            let photos = photosByQuiltID[nearbyQuilt.id] ?? []
+            guard let photo = photos.first else { continue }
+            _ = await displayImage(for: photo)
+        }
     }
 
     func movePhoto(_ photo: QuiltPhoto, by offset: Int) async {
@@ -474,8 +493,13 @@ final class QuiltStore: ObservableObject {
         do {
             guard let photoRecord = try photoRecord(for: photo.id),
                   let quiltRecord = photoRecord.quilt else { return }
+            let photoUUID = photoRecord.uuid
             context.delete(photoRecord)
             try context.save()
+
+            thumbnailImageCache.removeObject(forKey: NSNumber(value: photo.id))
+            displayImageCache.removeObject(forKey: NSNumber(value: photo.id))
+            await imagePipeline.removeDisplayImage(photoUUID: photoUUID)
 
             let remainingPhotos = sortedPhotos(for: quiltRecord)
             for (index, photo) in remainingPhotos.enumerated() {
@@ -1258,6 +1282,9 @@ final class QuiltStore: ObservableObject {
         resolution: BackupImportResolution
     ) throws {
         try validateBackup(manifest, payloadDirectory: payloadDirectory)
+        thumbnailImageCache.removeAllObjects()
+        displayImageCache.removeAllObjects()
+        Task { await imagePipeline.removeAllDisplayImages() }
 
         let currentRecordsByUUID = Dictionary(uniqueKeysWithValues: try sortedQuiltRecords().map { ($0.uuid, $0) })
         var nextSequenceNumber = (currentRecordsByUUID.values.map(\.sequenceNumber).max() ?? 0) + 1
@@ -1676,6 +1703,10 @@ final class QuiltStore: ObservableObject {
         return output as Data
     }
 
+    private static func imageCost(_ image: CGImage) -> Int {
+        image.bytesPerRow * image.height
+    }
+
     private static func mimeType(for url: URL) -> String {
         switch url.pathExtension.lowercased() {
         case "png": return "image/png"
@@ -1692,6 +1723,111 @@ final class QuiltStore: ObservableObject {
         case "image/tiff": return "tiff"
         default: return "jpg"
         }
+    }
+}
+
+private actor QuiltImagePipeline {
+    private static let displayMaxPixelSize = 1_800
+    private static let thumbnailMaxPixelSize = 240
+    private static let cacheVersion = 1
+    private let modelContainer: ModelContainer
+    private lazy var context = ModelContext(modelContainer)
+    private let cacheDirectory: URL?
+
+    init(modelContainer: ModelContainer) {
+        self.modelContainer = modelContainer
+        cacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("Quilt Log", isDirectory: true)
+            .appendingPathComponent("Display Images", isDirectory: true)
+    }
+
+    func thumbnailCGImage(data: Data) -> CGImage? {
+        Self.downsampledImage(data: data, maxPixelSize: Self.thumbnailMaxPixelSize)
+    }
+
+    func displayCGImage(photoUUID: String, fallbackThumbnailData: Data?) -> CGImage? {
+        if let cachedData = cachedDisplayData(photoUUID: photoUUID),
+           let image = Self.downsampledImage(data: cachedData, maxPixelSize: Self.displayMaxPixelSize) {
+            return image
+        }
+
+        guard !Task.isCancelled else { return nil }
+        let descriptor = FetchDescriptor<QuiltPhotoRecord>(
+            predicate: #Predicate { $0.uuid == photoUUID }
+        )
+        let sourceData: Data?
+        do {
+            let record = try context.fetch(descriptor).first
+            sourceData = record?.imageData ?? record?.thumbnailData ?? fallbackThumbnailData
+        } catch {
+            sourceData = fallbackThumbnailData
+        }
+
+        guard !Task.isCancelled,
+              let sourceData,
+              let image = Self.downsampledImage(data: sourceData, maxPixelSize: Self.displayMaxPixelSize) else {
+            return nil
+        }
+        saveDisplayImage(image, photoUUID: photoUUID)
+        return image
+    }
+
+    func removeDisplayImage(photoUUID: String) {
+        guard let url = cacheURL(photoUUID: photoUUID) else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    func removeAllDisplayImages() {
+        guard let cacheDirectory else { return }
+        try? FileManager.default.removeItem(at: cacheDirectory)
+    }
+
+    private func cachedDisplayData(photoUUID: String) -> Data? {
+        guard let url = cacheURL(photoUUID: photoUUID) else { return nil }
+        return try? Data(contentsOf: url, options: .mappedIfSafe)
+    }
+
+    private func saveDisplayImage(_ image: CGImage, photoUUID: String) {
+        guard let url = cacheURL(photoUUID: photoUUID) else { return }
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            output,
+            "public.jpeg" as CFString,
+            1,
+            nil
+        ) else { return }
+        let properties: [CFString: Any] = [
+            kCGImageDestinationLossyCompressionQuality: 0.82
+        ]
+        CGImageDestinationAddImage(destination, image, properties as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { return }
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try (output as Data).write(to: url, options: .atomic)
+        } catch {
+            // The persistent cache is optional. The memory cache still works.
+        }
+    }
+
+    private func cacheURL(photoUUID: String) -> URL? {
+        cacheDirectory?.appendingPathComponent(
+            "\(photoUUID)-v\(Self.cacheVersion)-\(Self.displayMaxPixelSize).jpg",
+            isDirectory: false
+        )
+    }
+
+    private static func downsampledImage(data: Data, maxPixelSize: Int) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 }
 

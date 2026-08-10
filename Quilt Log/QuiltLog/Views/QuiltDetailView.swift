@@ -64,6 +64,9 @@ struct QuiltDetailView: View {
         .onAppear {
             displayedDatabaseGeneration = store.databaseGeneration
         }
+        .task(id: quilt.id) {
+            await store.prefetchDisplayImages(around: quilt.id)
+        }
         .onChange(of: quilt) { _, newValue in
             if displayedDatabaseGeneration == store.databaseGeneration {
                 flushPendingSave()
@@ -768,7 +771,7 @@ private struct PhotoDetailView: View {
             image = nil
             try? await Task.sleep(nanoseconds: 30_000_000)
             guard !Task.isCancelled else { return }
-            image = store.displayImage(for: photo)
+            image = await store.displayImage(for: photo)
         }
     }
 
@@ -847,7 +850,7 @@ private struct PhotoTile: View {
             thumbnailImage = nil
             await Task.yield()
             guard !Task.isCancelled else { return }
-            thumbnailImage = store.thumbnailImage(for: photo)
+            thumbnailImage = await store.thumbnailImage(for: photo)
         }
     }
 
