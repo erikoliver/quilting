@@ -207,13 +207,13 @@ struct QuiltDetailView: View {
                 fieldSection("Dates") {
                     VStack(alignment: .leading, spacing: 6) {
                         compactField("Started") {
-                            TextField("YYYY-MM-DD", text: $draft.startedDate)
+                            QuiltDateField("Started", text: $draft.startedDate)
                         }
                         compactField("Piecing Completed") {
-                            TextField("YYYY-MM-DD", text: $draft.quiltDate)
+                            QuiltDateField("Piecing Completed", text: $draft.quiltDate)
                         }
                         compactField("Quilting Completed") {
-                            TextField("YYYY-MM-DD", text: $draft.quiltingCompletedDate)
+                            QuiltDateField("Quilting Completed", text: $draft.quiltingCompletedDate)
                         }
                     }
                 }
@@ -298,16 +298,16 @@ struct QuiltDetailView: View {
                     Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 12) {
                         GridRow {
                             labeled("Started") {
-                                TextField("YYYY-MM-DD", text: $draft.startedDate)
-                                    .frame(width: 140)
+                                QuiltDateField("Started", text: $draft.startedDate)
+                                    .frame(width: 165)
                             }
                             labeled("Piecing Completed") {
-                                TextField("YYYY-MM-DD", text: $draft.quiltDate)
-                                    .frame(width: 140)
+                                QuiltDateField("Piecing Completed", text: $draft.quiltDate)
+                                    .frame(width: 165)
                             }
                             labeled("Quilting Completed") {
-                                TextField("YYYY-MM-DD", text: $draft.quiltingCompletedDate)
-                                    .frame(width: 140)
+                                QuiltDateField("Quilting Completed", text: $draft.quiltingCompletedDate)
+                                    .frame(width: 165)
                             }
                         }
                     }
@@ -734,6 +734,82 @@ struct QuiltDetailView: View {
         return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.9])
     }
 #endif
+}
+
+private struct QuiltDateField: View {
+    let label: String
+    @Binding var text: String
+    @State private var showingCalendar = false
+    @State private var calendarDate = Date()
+
+    init(_ label: String, text: Binding<String>) {
+        self.label = label
+        _text = text
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            TextField("YYYY-MM-DD", text: $text)
+#if os(iOS)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+#endif
+
+            Button {
+                calendarDate = Self.date(from: text) ?? Date()
+                showingCalendar = true
+            } label: {
+                Image(systemName: "calendar")
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Choose \(label) date")
+            .popover(isPresented: $showingCalendar) {
+                calendarPicker
+            }
+        }
+    }
+
+    private var calendarPicker: some View {
+        VStack(spacing: 12) {
+            DatePicker(label, selection: $calendarDate, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+
+            HStack {
+                Button("Clear") {
+                    text = ""
+                    showingCalendar = false
+                }
+                Spacer()
+                Button("Cancel", role: .cancel) {
+                    showingCalendar = false
+                }
+                Button("Use Date") {
+                    text = Self.string(from: calendarDate)
+                    showingCalendar = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding()
+        .frame(minWidth: 320)
+    }
+
+    private static func date(from text: String) -> Date? {
+        dateFormatter.date(from: text.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    private static func string(from date: Date) -> String {
+        dateFormatter.string(from: date)
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 }
 
 private struct PhotoDetailView: View {
