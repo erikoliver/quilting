@@ -283,6 +283,7 @@ final class QuiltStore: ObservableObject {
         }
         databaseGeneration += 1
         DiagnosticLog.record("store fetchQuilts loadPhotos=\(loadPhotos) quilts=\(self.quilts.count) generation=\(self.databaseGeneration)")
+        QuiltSpotlightIndexer.reindexAll()
     }
 
     @discardableResult
@@ -1058,6 +1059,7 @@ final class QuiltStore: ObservableObject {
         photosByQuiltID = Dictionary(grouping: photos, by: \.quiltID).mapValues {
             $0.sorted { $0.sortOrder == $1.sortOrder ? $0.id < $1.id : $0.sortOrder < $1.sortOrder }
         }
+        QuiltSpotlightIndexer.reindexAll()
     }
 
     private func searchableText(for quilt: Quilt) -> String {

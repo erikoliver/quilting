@@ -35,6 +35,7 @@
 		010000000000000000000826 /* BackupImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000827 /* BackupImportTests.swift */; };
 		010000000000000000000828 /* QuiltStoreSharedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000829 /* QuiltStoreSharedTests.swift */; };
 		0316C11F2FE89E2E00C32B0B /* AboutQuiltLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0316C11E2FE89E2E00C32B0B /* AboutQuiltLogView.swift */; };
+		04A000000000000000000001 /* QuiltLogIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04A000000000000000000101 /* QuiltLogIntents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,6 +82,7 @@
 		010000000000000000000827 /* BackupImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupImportTests.swift; sourceTree = "<group>"; };
 		010000000000000000000829 /* QuiltStoreSharedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltStoreSharedTests.swift; sourceTree = "<group>"; };
 		0316C11E2FE89E2E00C32B0B /* AboutQuiltLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutQuiltLogView.swift; sourceTree = "<group>"; };
+		04A000000000000000000101 /* QuiltLogIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuiltLogIntents.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000101 /* QuiltLogApp.swift */,
+				04A000000000000000000308 /* AppIntents */,
 				010000000000000000000115 /* PlatformSupport.swift */,
 				010000000000000000000119 /* DiagnosticLog.swift */,
 				01000000000000000000011A /* CloudKitDiagnosticProbe.swift */,
@@ -191,6 +194,14 @@
 				0316C11E2FE89E2E00C32B0B /* AboutQuiltLogView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		04A000000000000000000308 /* AppIntents */ = {
+			isa = PBXGroup;
+			children = (
+				04A000000000000000000101 /* QuiltLogIntents.swift */,
+			);
+			path = AppIntents;
 			sourceTree = "<group>";
 		};
 		010000000000000000000814 /* QuiltLogTests */ = {
@@ -336,6 +347,7 @@
 				010000000000000000000013 /* PlatformSupport.swift in Sources */,
 				010000000000000000000015 /* DiagnosticLog.swift in Sources */,
 				010000000000000000000016 /* CloudKitDiagnosticProbe.swift in Sources */,
+				04A000000000000000000001 /* QuiltLogIntents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -494,7 +506,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 27;
+				CURRENT_PROJECT_VERSION = 28;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -536,7 +548,7 @@
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = QuiltLog/QuiltLog.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 27;
+				CURRENT_PROJECT_VERSION = 28;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
