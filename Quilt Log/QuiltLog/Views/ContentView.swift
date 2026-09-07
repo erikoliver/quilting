@@ -670,7 +670,7 @@ struct ContentView: View {
         switch store.cloudSyncStatus.phase {
         case .settingUp, .importing:
             return true
-        case .waiting, .exporting, .idle, .failed:
+        case .waiting, .exporting, .idle, .local, .failed:
             return false
         }
     }

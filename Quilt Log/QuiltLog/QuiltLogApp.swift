@@ -1,6 +1,7 @@
 // Copyright 2026 Erik Oliver
 // SPDX-License-Identifier: Apache-2.0
 
+import CloudKit
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -100,24 +101,28 @@ private final class QuiltRuntime: ObservableObject {
         ])
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         let configuration: ModelConfiguration
+        let cloudKitEnabled: Bool
         if isRunningTests {
             DiagnosticLog.record("runtime configuration=tests cloudKit=none")
             configuration = ModelConfiguration("QuiltLogTests", schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-        } else if Self.hasCloudKitEntitlement {
+            cloudKitEnabled = false
+        } else if Self.hasCloudKitEntitlement, await Self.hasAvailableCloudKitAccount() {
             DiagnosticLog.record("runtime configuration=cloud container=iCloud.com.erikoliver.quiltlog")
 #if os(macOS)
             CloudKitDiagnosticProbe.run(reason: "prepareStore")
 #endif
             configuration = ModelConfiguration("QuiltLogCloud", schema: schema, cloudKitDatabase: .private("iCloud.com.erikoliver.quiltlog"))
+            cloudKitEnabled = true
         } else {
-            DiagnosticLog.record("runtime configuration=unsigned cloudKit=none")
-            configuration = ModelConfiguration("QuiltLogUnsigned", schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+            DiagnosticLog.record("runtime configuration=local cloudKit=none")
+            configuration = ModelConfiguration("QuiltLogCloud", schema: schema, cloudKitDatabase: .none)
+            cloudKitEnabled = false
         }
 
         do {
             let container = try ModelContainer(for: schema, configurations: [configuration])
             modelContainer = container
-            store = QuiltStore(modelContainer: container) { [weak self] in
+            store = QuiltStore(modelContainer: container, cloudSyncEnabled: cloudKitEnabled) { [weak self] in
                 self?.retryCloudStore()
             }
             DiagnosticLog.record("runtime prepareStore succeeded")
@@ -160,6 +165,33 @@ private final class QuiltRuntime: ObservableObject {
         DiagnosticLog.record("runtime cloudKitEntitlement assumed=true non-macOS")
         return true
 #endif
+    }
+
+    private static func hasAvailableCloudKitAccount() async -> Bool {
+#if targetEnvironment(simulator)
+        guard FileManager.default.ubiquityIdentityToken != nil else {
+            DiagnosticLog.record("runtime cloudKitAccount available=false simulator has no iCloud identity")
+            return false
+        }
+#endif
+        let container = CKContainer(identifier: "iCloud.com.erikoliver.quiltlog")
+        do {
+            let status: CKAccountStatus = try await withCheckedThrowingContinuation { continuation in
+                container.accountStatus { status, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: status)
+                    }
+                }
+            }
+            let isAvailable = status == .available
+            DiagnosticLog.record("runtime cloudKitAccount available=\(isAvailable)")
+            return isAvailable
+        } catch {
+            DiagnosticLog.record("runtime cloudKitAccount unavailable", error: error)
+            return false
+        }
     }
 }
 

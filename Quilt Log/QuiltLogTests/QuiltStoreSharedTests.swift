@@ -9,6 +9,20 @@ import XCTest
 
 @MainActor
 final class QuiltStoreSharedTests: XCTestCase {
+    func testIntentRepositoryUsesStoreModelContainer() async throws {
+        let store = try makeStore()
+        let createdQuiltID = await store.createQuilt()
+        let quiltID = try XCTUnwrap(createdQuiltID)
+        var quilt = try XCTUnwrap(store.quilts.first { $0.id == quiltID })
+        quilt.quiltName = "Shared Container Quilt"
+        let didSave = await store.save(quilt)
+        XCTAssertTrue(didSave)
+
+        let entities = try QuiltIntentRepository.entities(matching: "Shared Container")
+
+        XCTAssertEqual(entities.map(\.name), ["Shared Container Quilt"])
+    }
+
     func testCreatesSavesAndRenumbersQuilts() async throws {
         let store = try makeStore()
 
@@ -46,6 +60,22 @@ final class QuiltStoreSharedTests: XCTestCase {
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         let size = try XCTUnwrap(attributes[.size] as? NSNumber)
         XCTAssertGreaterThan(size.intValue, 0)
+    }
+
+    func testPhotoShareFileUsesOriginalImageData() async throws {
+        let store = try makeStore()
+        let createdQuiltID = await store.createQuilt()
+        let quiltID = try XCTUnwrap(createdQuiltID)
+        let quilt = try XCTUnwrap(store.quilts.first { $0.id == quiltID })
+        let imageData = try makeJPEGData()
+        try store.addPhoto(to: quilt, data: imageData, mimeType: "image/jpeg")
+        let photo = try XCTUnwrap(store.photosByQuiltID[quiltID]?.first)
+
+        let url = try store.photoShareURL(for: photo)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertEqual(url.pathExtension, "jpg")
+        XCTAssertEqual(try Data(contentsOf: url), imageData)
     }
 
     func testSavesAndSearchesStructuredDetailFields() async throws {

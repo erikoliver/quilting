@@ -816,6 +816,7 @@ private struct PhotoDetailView: View {
     @EnvironmentObject private var store: QuiltStore
     let photo: QuiltPhoto
     @State private var image: PlatformImage?
+    @State private var shareURL: URL?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -834,6 +835,9 @@ private struct PhotoDetailView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contextMenu {
+                photoShareAction
+            }
 
             if !photo.caption.isEmpty {
                 Text(photo.caption)
@@ -848,6 +852,26 @@ private struct PhotoDetailView: View {
             try? await Task.sleep(nanoseconds: 30_000_000)
             guard !Task.isCancelled else { return }
             image = await store.displayImage(for: photo)
+            prepareShareURL()
+        }
+    }
+
+    @ViewBuilder
+    private var photoShareAction: some View {
+        if let shareURL {
+            ShareLink(item: shareURL) {
+                Label("Share Photo", systemImage: "square.and.arrow.up")
+            }
+        } else {
+            Label("Preparing Photo", systemImage: "hourglass")
+        }
+    }
+
+    private func prepareShareURL() {
+        do {
+            shareURL = try store.photoShareURL(for: photo)
+        } catch {
+            store.errorMessage = "Could not prepare the photo for sharing."
         }
     }
 
@@ -862,6 +886,7 @@ private struct PhotoTile: View {
     let onOpen: () -> Void
     @State private var showingDeleteConfirmation = false
     @State private var thumbnailImage: PlatformImage?
+    @State private var shareURL: URL?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -871,6 +896,9 @@ private struct PhotoTile: View {
             .buttonStyle(.plain)
             .help("Show larger photo")
             .accessibilityLabel("Show larger photo")
+            .contextMenu {
+                photoShareAction
+            }
 
             HStack(spacing: 4) {
                 Button {
@@ -927,6 +955,26 @@ private struct PhotoTile: View {
             await Task.yield()
             guard !Task.isCancelled else { return }
             thumbnailImage = await store.thumbnailImage(for: photo)
+            prepareShareURL()
+        }
+    }
+
+    @ViewBuilder
+    private var photoShareAction: some View {
+        if let shareURL {
+            ShareLink(item: shareURL) {
+                Label("Share Photo", systemImage: "square.and.arrow.up")
+            }
+        } else {
+            Label("Preparing Photo", systemImage: "hourglass")
+        }
+    }
+
+    private func prepareShareURL() {
+        do {
+            shareURL = try store.photoShareURL(for: photo)
+        } catch {
+            store.errorMessage = "Could not prepare the photo for sharing."
         }
     }
 

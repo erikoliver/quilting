@@ -19,6 +19,7 @@ struct CloudSyncStatus: Equatable {
         case importing
         case exporting
         case idle
+        case local
         case failed
     }
 
@@ -33,6 +34,7 @@ struct CloudSyncStatus: Equatable {
         case .importing: "icloud.and.arrow.down"
         case .exporting: "icloud.and.arrow.up"
         case .idle: "checkmark.icloud"
+        case .local: "internaldrive"
         case .failed: "exclamationmark.icloud"
         }
     }
@@ -191,6 +193,7 @@ final class QuiltStore: ObservableObject {
     )
 
     private let context: ModelContext
+    private let cloudSyncEnabled: Bool
     private var quiltUUIDByID: [Int64: String] = [:]
     private var photoUUIDByID: [Int64: String] = [:]
     private var cloudKitEventObserver: NSObjectProtocol?
@@ -212,10 +215,16 @@ final class QuiltStore: ObservableObject {
     private static let cloudKitRetryDelayNanoseconds: UInt64 = 30_000_000_000
     private static let cloudKitQuietSettledDelayNanoseconds: UInt64 = 12_000_000_000
 
-    init(modelContainer: ModelContainer, onCloudKitRetryRequested: (() -> Void)? = nil) {
+    init(
+        modelContainer: ModelContainer,
+        cloudSyncEnabled: Bool = false,
+        onCloudKitRetryRequested: (() -> Void)? = nil
+    ) {
         context = ModelContext(modelContainer)
         imagePipeline = QuiltImagePipeline(modelContainer: modelContainer)
+        self.cloudSyncEnabled = cloudSyncEnabled
         self.onCloudKitRetryRequested = onCloudKitRetryRequested
+        QuiltIntentRepository.use(modelContainer: modelContainer)
         thumbnailImageCache.countLimit = 300
         thumbnailImageCache.totalCostLimit = 96 * 1_024 * 1_024
         displayImageCache.countLimit = 100
@@ -224,8 +233,16 @@ final class QuiltStore: ObservableObject {
 #else
         displayImageCache.totalCostLimit = 256 * 1_024 * 1_024
 #endif
-        DiagnosticLog.record("store init; registering CloudKit event observer")
-        observeCloudKitEvents()
+        if cloudSyncEnabled {
+            DiagnosticLog.record("store init; registering CloudKit event observer")
+            observeCloudKitEvents()
+        } else {
+            cloudSyncStatus = CloudSyncStatus(
+                phase: .local,
+                message: "Stored on this device",
+                lastUpdated: Date()
+            )
+        }
     }
 
     deinit {
@@ -249,11 +266,13 @@ final class QuiltStore: ObservableObject {
     func load() async {
         DiagnosticLog.record("store load begin")
         do {
-            cloudSyncStatus = CloudSyncStatus(
-                phase: .settingUp,
-                message: "Preparing iCloud library",
-                lastUpdated: Date()
-            )
+            if cloudSyncEnabled {
+                cloudSyncStatus = CloudSyncStatus(
+                    phase: .settingUp,
+                    message: "Preparing iCloud library",
+                    lastUpdated: Date()
+                )
+            }
             libraryFolderURL = try Self.applicationSupportDirectory()
             DiagnosticLog.record("store libraryFolderURL=\(self.libraryFolderURL?.path ?? "nil")")
             try await migrateLegacySQLiteIfNeeded()
@@ -262,10 +281,10 @@ final class QuiltStore: ObservableObject {
             try fetchQuilts(loadPhotos: false)
             DiagnosticLog.record("store initial fetch quilts=\(self.quilts.count)")
             startDeferredPhotoRefresh()
-            if quilts.isEmpty {
+            if cloudSyncEnabled, quilts.isEmpty {
                 DiagnosticLog.record("store empty after initial fetch; starting CloudKit import polling")
                 startCloudImportRefreshPolling()
-            } else {
+            } else if cloudSyncEnabled {
                 scheduleCloudKitQuietSettledStatus()
             }
         } catch {
@@ -455,6 +474,20 @@ final class QuiltStore: ObservableObject {
         let image = PlatformImage(cgImage: cgImage)
         displayImageCache.setObject(image, forKey: key, cost: Self.imageCost(cgImage))
         return image
+    }
+
+    func photoShareURL(for photo: QuiltPhoto) throws -> URL {
+        guard let record = try photoRecord(for: photo.id),
+              let data = record.imageData ?? record.thumbnailData else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Quilt Log Shared Photos", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let filename = "Quilt Photo \(photo.id).\(Self.fileExtension(for: record.mimeType))"
+        let url = directory.appendingPathComponent(filename, isDirectory: false)
+        try data.write(to: url, options: .atomic)
+        return url
     }
 
     func prefetchDisplayImages(around quiltID: Int64) async {

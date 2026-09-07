@@ -297,8 +297,12 @@ private enum QuiltIntentError: LocalizedError {
 }
 
 @MainActor
-private enum QuiltIntentRepository {
+enum QuiltIntentRepository {
     private static var cachedContainer: ModelContainer?
+
+    static func use(modelContainer: ModelContainer) {
+        cachedContainer = modelContainer
+    }
 
     static func entities(
         matching search: String? = nil,
