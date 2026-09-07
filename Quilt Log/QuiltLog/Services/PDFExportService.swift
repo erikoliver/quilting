@@ -307,7 +307,7 @@ enum PDFExportService {
         let pattern = quilt.patternName.trimmingCharacters(in: .whitespacesAndNewlines)
         let size = quilt.approxSize.trimmingCharacters(in: .whitespacesAndNewlines)
         if !pattern.isEmpty, !size.isEmpty {
-            return "\(pattern) - \(size)"
+            return "\(size) - \(pattern)"
         }
         if !pattern.isEmpty {
             return pattern
