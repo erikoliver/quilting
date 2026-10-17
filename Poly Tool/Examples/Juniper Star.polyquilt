@@ -1,0 +1,194 @@
+{
+  "fabrics" : [
+    {
+      "hex" : "315D55",
+      "id" : "82E8966D-309A-40F2-88F8-1740E8FA4A2B",
+      "name" : "Juniper"
+    },
+    {
+      "hex" : "88B5A5",
+      "id" : "F4229A7C-93DF-4E33-BE2A-FA0C9F44BD50",
+      "name" : "Sea Glass"
+    },
+    {
+      "hex" : "EEE3CB",
+      "id" : "ED2388B9-4554-4DAD-9AC5-0359A1AAE501",
+      "name" : "Linen"
+    },
+    {
+      "hex" : "DEA94B",
+      "id" : "61A34DC2-0718-4639-958B-87A002D986A1",
+      "name" : "Marigold"
+    },
+    {
+      "hex" : "C76F52",
+      "id" : "5CD34FC9-A267-43BC-ACEF-26292377ED34",
+      "name" : "Clay"
+    },
+    {
+      "hex" : "C993A1",
+      "id" : "06CAB80F-966C-45B4-AED1-8C7A6FCDD4F1",
+      "name" : "Rose"
+    },
+    {
+      "hex" : "43516F",
+      "id" : "88950439-7BAB-495F-A0F8-B4560CF50EE6",
+      "name" : "Indigo"
+    },
+    {
+      "hex" : "30383C",
+      "id" : "1EF62C50-F8E8-4CC4-9BF4-6D4AD6A798E8",
+      "name" : "Ink"
+    }
+  ],
+  "pieces" : [
+    {
+      "fabricID" : "82E8966D-309A-40F2-88F8-1740E8FA4A2B",
+      "flipped" : false,
+      "id" : "27D97998-6FAD-459C-9CB8-E5DCF29E36D3",
+      "kind" : "diamond",
+      "origin" : {
+        "q" : 0,
+        "r" : 0
+      },
+      "rotation" : 0,
+      "size" : 2
+    },
+    {
+      "fabricID" : "ED2388B9-4554-4DAD-9AC5-0359A1AAE501",
+      "flipped" : false,
+      "id" : "6CBB1E20-9AEF-4223-AE5A-25F6204F5FD7",
+      "kind" : "triangle",
+      "origin" : {
+        "q" : 2,
+        "r" : 2
+      },
+      "rotation" : 1,
+      "size" : 2
+    },
+    {
+      "fabricID" : "F4229A7C-93DF-4E33-BE2A-FA0C9F44BD50",
+      "flipped" : false,
+      "id" : "27AC5540-3789-4368-A9EE-5F6DCCC76578",
+      "kind" : "diamond",
+      "origin" : {
+        "q" : 0,
+        "r" : 0
+      },
+      "rotation" : 1,
+      "size" : 2
+    },
+    {
+      "fabricID" : "ED2388B9-4554-4DAD-9AC5-0359A1AAE501",
+      "flipped" : false,
+      "id" : "ED1F7292-3FE1-43B6-9763-A473697F0345",
+      "kind" : "triangle",
+      "origin" : {
+        "q" : -2,
+        "r" : 4
+      },
+      "rotation" : 2,
+      "size" : 2
+    },
+    {
+      "fabricID" : "82E8966D-309A-40F2-88F8-1740E8FA4A2B",
+      "flipped" : false,
+      "id" : "80691DA6-EBA2-4306-B8F4-6BE82CFF744F",
+      "kind" : "diamond",
+      "origin" : {
+        "q" : 0,
+        "r" : 0
+      },
+      "rotation" : 2,
+      "size" : 2
+    },
+    {
+      "fabricID" : "ED2388B9-4554-4DAD-9AC5-0359A1AAE501",
+      "flipped" : false,
+      "id" : "C0E6B23A-C52B-4D36-BCFB-FAC907FA1051",
+      "kind" : "triangle",
+      "origin" : {
+        "q" : -4,
+        "r" : 2
+      },
+      "rotation" : 3,
+      "size" : 2
+    },
+    {
+      "fabricID" : "F4229A7C-93DF-4E33-BE2A-FA0C9F44BD50",
+      "flipped" : false,
+      "id" : "0C779622-BBB2-41B9-A9AF-CD181EE4BAE1",
+      "kind" : "diamond",
+      "origin" : {
+        "q" : 0,
+        "r" : 0
+      },
+      "rotation" : 3,
+      "size" : 2
+    },
+    {
+      "fabricID" : "ED2388B9-4554-4DAD-9AC5-0359A1AAE501",
+      "flipped" : false,
+      "id" : "8708554E-FA09-494B-965E-E396F3F82F21",
+      "kind" : "triangle",
+      "origin" : {
+        "q" : -2,
+        "r" : -2
+      },
+      "rotation" : 4,
+      "size" : 2
+    },
+    {
+      "fabricID" : "82E8966D-309A-40F2-88F8-1740E8FA4A2B",
+      "flipped" : false,
+      "id" : "3EA0D6D5-DA7D-47B8-A0E2-C279992791E3",
+      "kind" : "diamond",
+      "origin" : {
+        "q" : 0,
+        "r" : 0
+      },
+      "rotation" : 4,
+      "size" : 2
+    },
+    {
+      "fabricID" : "ED2388B9-4554-4DAD-9AC5-0359A1AAE501",
+      "flipped" : false,
+      "id" : "265245ED-8C76-4887-AE06-9B9BA74B52AB",
+      "kind" : "triangle",
+      "origin" : {
+        "q" : 2,
+        "r" : -4
+      },
+      "rotation" : 5,
+      "size" : 2
+    },
+    {
+      "fabricID" : "F4229A7C-93DF-4E33-BE2A-FA0C9F44BD50",
+      "flipped" : false,
+      "id" : "C49F1FF9-A902-453B-979A-3E3E7EC80B68",
+      "kind" : "diamond",
+      "origin" : {
+        "q" : 0,
+        "r" : 0
+      },
+      "rotation" : 5,
+      "size" : 2
+    },
+    {
+      "fabricID" : "ED2388B9-4554-4DAD-9AC5-0359A1AAE501",
+      "flipped" : false,
+      "id" : "467D2DC1-7401-4FE1-BC6C-62CD7629BD8E",
+      "kind" : "triangle",
+      "origin" : {
+        "q" : 4,
+        "r" : -2
+      },
+      "rotation" : 0,
+      "size" : 2
+    }
+  ],
+  "schemaVersion" : 1,
+  "sizeConvention" : "nominal finished triangle height; strip planning width = height + 0.5 inches",
+  "title" : "Juniper Star",
+  "units" : "inches"
+}
