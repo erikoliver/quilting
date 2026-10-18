@@ -505,14 +505,24 @@ final class QuiltStore: ObservableObject {
     }
 
     func movePhoto(_ photo: QuiltPhoto, by offset: Int) async {
+        await reorderPhoto(photo) { $0 + offset }
+    }
+
+    func movePhotoToBeginning(_ photo: QuiltPhoto) async {
+        await reorderPhoto(photo) { _ in 0 }
+    }
+
+    private func reorderPhoto(_ photo: QuiltPhoto, targetIndex: (Int) -> Int) async {
         do {
             guard let photoRecord = try photoRecord(for: photo.id),
                   let quiltRecord = photoRecord.quilt else { return }
             var photos = sortedPhotos(for: quiltRecord)
             guard let currentIndex = photos.firstIndex(where: { $0.uuid == photoRecord.uuid }) else { return }
-            let targetIndex = currentIndex + offset
+            let targetIndex = targetIndex(currentIndex)
             guard photos.indices.contains(targetIndex) else { return }
-            photos.swapAt(currentIndex, targetIndex)
+            guard currentIndex != targetIndex else { return }
+            let movedPhoto = photos.remove(at: currentIndex)
+            photos.insert(movedPhoto, at: targetIndex)
             for (index, photo) in photos.enumerated() {
                 photo.sortOrder = index
             }

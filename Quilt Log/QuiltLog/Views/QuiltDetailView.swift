@@ -900,39 +900,60 @@ private struct PhotoTile: View {
                 photoShareAction
             }
 
-            HStack(spacing: 4) {
-                Button {
-                    Task { await store.setCoverPhoto(photo) }
-                } label: {
-                    Label("Make Cover", systemImage: photo.isCover ? "star.fill" : "star")
-                }
-                .buttonStyle(.borderless)
-                .help(photo.isCover ? "Cover photo" : "Make this the cover photo")
+            HStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Button {
+                        Task { await store.setCoverPhoto(photo) }
+                    } label: {
+                        Label("Make Cover", systemImage: photo.isCover ? "star.fill" : "star")
+                            .frame(minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .help(photo.isCover ? "Cover photo" : "Make this the cover photo")
 
-                Button {
-                    Task { await store.movePhoto(photo, by: -1) }
-                } label: {
-                    Label("Move Earlier", systemImage: "chevron.left")
-                }
-                .buttonStyle(.borderless)
-                .disabled(isFirst)
-                .help("Move earlier")
+                    Button {
+                        Task { await store.movePhotoToBeginning(photo) }
+                    } label: {
+                        Label("Move to Beginning", systemImage: "backward.end")
+                            .frame(minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(isFirst)
+                    .help("Move to beginning")
 
-                Button {
-                    Task { await store.movePhoto(photo, by: 1) }
-                } label: {
-                    Label("Move Later", systemImage: "chevron.right")
-                }
-                .buttonStyle(.borderless)
-                .disabled(isLast)
-                .help("Move later")
+                    Button {
+                        Task { await store.movePhoto(photo, by: -1) }
+                    } label: {
+                        Label("Move Earlier", systemImage: "chevron.left")
+                            .frame(minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(isFirst)
+                    .help("Move earlier")
 
-                Spacer()
+                    Button {
+                        Task { await store.movePhoto(photo, by: 1) }
+                    } label: {
+                        Label("Move Later", systemImage: "chevron.right")
+                            .frame(minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(isLast)
+                    .help("Move later")
+                }
+
+                Spacer(minLength: 16)
 
                 Button(role: .destructive) {
                     showingDeleteConfirmation = true
                 } label: {
                     Label("Delete Photo", systemImage: "trash")
+                        .frame(minHeight: 32)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
                 .help("Delete photo")

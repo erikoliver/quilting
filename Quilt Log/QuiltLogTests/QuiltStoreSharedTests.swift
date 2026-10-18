@@ -62,6 +62,31 @@ final class QuiltStoreSharedTests: XCTestCase {
         XCTAssertGreaterThan(size.intValue, 0)
     }
 
+    func testMovingPhotoToBeginningPreservesOtherOrderAndCover() async throws {
+        let container = try makeContainer()
+        let store = QuiltStore(modelContainer: container)
+        let createdQuiltID = await store.createQuilt()
+        let quiltID = try XCTUnwrap(createdQuiltID)
+        let quilt = try XCTUnwrap(store.quilts.first { $0.id == quiltID })
+        let imageData = try makeJPEGData()
+        for _ in 0..<4 {
+            try store.addPhoto(to: quilt, data: imageData, mimeType: "image/jpeg")
+        }
+        let original = try XCTUnwrap(store.photosByQuiltID[quiltID])
+
+        await store.movePhotoToBeginning(original[2])
+        // Repeating the action on the first photo must be harmless.
+        await store.movePhotoToBeginning(original[2])
+
+        let reloadedStore = QuiltStore(modelContainer: container)
+        try reloadedStore.fetchQuilts()
+        let reordered = try XCTUnwrap(reloadedStore.photosByQuiltID[quiltID])
+        XCTAssertEqual(reordered.map(\.id), [original[2].id, original[0].id, original[1].id, original[3].id])
+        XCTAssertEqual(reordered.map(\.sortOrder), [0, 1, 2, 3])
+        XCTAssertEqual(reordered.first(where: \.isCover)?.id, original[0].id)
+        XCTAssertNil(store.errorMessage)
+    }
+
     func testPhotoShareFileUsesOriginalImageData() async throws {
         let store = try makeStore()
         let createdQuiltID = await store.createQuilt()
